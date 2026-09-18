@@ -1,0 +1,8 @@
+{
+  "name": "Panduan Service",
+  "description": "Aplikasi panduan service audio, amplifier, speaker, komponen, tools, dan analisis kerusakan terintegrasi data spreadsheet",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
