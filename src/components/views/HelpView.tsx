@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SpreadsheetService } from '../../services/spreadsheetService';
-import { StaffContact } from '../../types';
+import { StaffContact, KonsultasiTicket, User } from '../../types';
 import { 
   HelpCircle, 
   Phone, 
@@ -10,26 +10,50 @@ import {
   UserCheck, 
   ArrowLeft,
   Award,
-  Sparkles
+  Sparkles,
+  Inbox,
+  Send,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 
 interface HelpViewProps {
+  currentUser?: User | null;
   onBackToMain?: () => void;
 }
 
-export const HelpView: React.FC<HelpViewProps> = ({ onBackToMain }) => {
+export const HelpView: React.FC<HelpViewProps> = ({ currentUser, onBackToMain }) => {
   const [contacts, setContacts] = useState<StaffContact[]>(SpreadsheetService.getStaffContacts());
+  const [tickets, setTickets] = useState<KonsultasiTicket[]>(SpreadsheetService.getKonsultasiTickets());
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [showAnswered, setShowAnswered] = useState(false);
+
+  const canAnswer = currentUser ? SpreadsheetService.hasFulltimeAccess(currentUser) : false;
 
   useEffect(() => {
-    setContacts(SpreadsheetService.getStaffContacts());
-    const unsub = SpreadsheetService.subscribeToDataChanges(() => {
+    const refresh = () => {
       setContacts(SpreadsheetService.getStaffContacts());
-    });
+      setTickets(SpreadsheetService.getKonsultasiTickets());
+    };
+    refresh();
+    const unsub = SpreadsheetService.subscribeToDataChanges(refresh);
     return unsub;
   }, []);
 
   const pembina = contacts.filter(s => s.role === 'Pembina');
   const admin = contacts.filter(s => s.role === 'Admin');
+  const pendingTickets = tickets.filter(t => t.status === 'Menunggu');
+  const answeredTickets = tickets.filter(t => t.status === 'Dijawab');
+
+  const handleSubmitAnswer = (id: string) => {
+    const jawaban = (replyDrafts[id] || '').trim();
+    if (!jawaban) {
+      alert('Tulis jawaban terlebih dahulu.');
+      return;
+    }
+    SpreadsheetService.answerKonsultasiTicket(id, jawaban);
+    setReplyDrafts(prev => ({ ...prev, [id]: '' }));
+  };
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -56,6 +80,94 @@ export const HelpView: React.FC<HelpViewProps> = ({ onBackToMain }) => {
           </div>
         </div>
       </div>
+
+      {/* SECTION 0: TIKET KONSULTASI MASUK (Fulltime & Editor saja) */}
+      {canAnswer && (
+        <div>
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold text-sm">
+              <Inbox className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">
+                Tiket Konsultasi Masuk ({pendingTickets.length} menunggu)
+              </h3>
+              <p className="text-xs text-slate-400">
+                Pertanyaan dari teknisi lewat tombol "Kirim Tiket Konsultasi Internal" di halaman Analisis
+              </p>
+            </div>
+          </div>
+
+          {pendingTickets.length === 0 && answeredTickets.length === 0 && (
+            <div className="p-6 text-center bg-slate-800/40 rounded-2xl border border-slate-700/60 text-slate-400 text-sm">
+              Belum ada tiket konsultasi masuk.
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {pendingTickets.map((t) => (
+              <div key={t.id} className="bg-slate-800/90 border border-rose-800/50 rounded-2xl p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800 inline-flex items-center gap-1 mb-1.5">
+                      <Clock className="w-3 h-3" /> Menunggu Jawaban
+                    </span>
+                    <p className="text-sm font-bold text-white">Unit: {t.unitName}</p>
+                    <p className="text-xs text-slate-400">Temuan Kerusakan: {t.damagedComponent}</p>
+                  </div>
+                  <span className="text-[11px] text-slate-500 shrink-0">{t.createdAt}</span>
+                </div>
+                <div className="text-xs text-slate-300 bg-slate-900/70 border border-slate-700/60 rounded-xl p-2.5">
+                  <span className="text-slate-500">Ditujukan ke <strong className="text-white">{t.pembinaTujuan}</strong>, dari <strong className="text-white">{t.askedBy}</strong>:</span>
+                  <p className="mt-1">{t.catatan}</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={replyDrafts[t.id] || ''}
+                    onChange={(e) => setReplyDrafts(prev => ({ ...prev, [t.id]: e.target.value }))}
+                    placeholder="Tulis jawaban / arahan teknis di sini..."
+                    className="flex-1 py-2 px-3 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSubmitAnswer(t.id)}
+                    className="py-2 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    Kirim Jawaban
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {answeredTickets.length > 0 && (
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={() => setShowAnswered(!showAnswered)}
+                className="text-xs text-slate-400 hover:text-slate-200 underline"
+              >
+                {showAnswered ? 'Sembunyikan' : 'Lihat'} {answeredTickets.length} tiket yang sudah dijawab
+              </button>
+              {showAnswered && (
+                <div className="space-y-2 mt-2">
+                  {answeredTickets.map((t) => (
+                    <div key={t.id} className="bg-slate-900/60 border border-emerald-900/50 rounded-xl p-3 text-xs">
+                      <div className="flex items-center gap-1.5 text-emerald-400 font-semibold mb-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> {t.unitName} - {t.damagedComponent}
+                      </div>
+                      <p className="text-slate-400">Pertanyaan: {t.catatan}</p>
+                      <p className="text-slate-200 mt-1">Jawaban: {t.jawaban}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* SECTION 1: PEMBINA */}
       <div>

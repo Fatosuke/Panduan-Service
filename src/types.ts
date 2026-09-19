@@ -1,4 +1,4 @@
-export type AccessType = 'fulltime' | '6months' | 'none';
+export type AccessType = 'fulltime' | 'editor' | '6months' | 'none';
 
 export interface User {
   id: string;
@@ -129,6 +129,19 @@ export interface StaffContact {
   email: string;
   status: 'Online' | 'Bertugas' | 'Standby';
   specialty: string;
+}
+
+export interface KonsultasiTicket {
+  id: string;
+  unitName: string;
+  damagedComponent: string;
+  pembinaTujuan: string;
+  catatan: string;
+  askedBy: string;
+  status: 'Menunggu' | 'Dijawab';
+  jawaban?: string;
+  createdAt: string;
+  answeredAt?: string;
 }
 
 export interface SpreadsheetConfig {

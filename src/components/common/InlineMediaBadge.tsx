@@ -56,48 +56,56 @@ export const InlineMediaBadge: React.FC<InlineMediaBadgeProps> = ({
 
   return (
     <>
-      {/* Small inline badge / thumbnail */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen(true);
-        }}
-        title={`Lihat media ${isVideo ? 'Video' : 'Foto'}: ${title || ''}`}
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-semibold transition-all shadow-sm cursor-pointer align-middle ml-2 group ${
-          isVideo 
-            ? 'bg-rose-950/80 hover:bg-rose-900 border-rose-700/80 text-rose-200' 
-            : 'bg-emerald-950/80 hover:bg-emerald-900 border-emerald-700/80 text-emerald-200'
-        } ${className}`}
-      >
-        {isVideo ? (
-          <>
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-            </span>
-            <Play className="w-3 h-3 fill-rose-300 text-rose-300 group-hover:scale-110 transition-transform" />
-            <span className="font-bold tracking-tight">Video</span>
-          </>
-        ) : (
-          <>
-            {rawUrl.startsWith('http') || rawUrl.startsWith('data:') ? (
-              <img 
-                src={rawUrl} 
-                alt="" 
-                className="w-4 h-4 rounded object-cover border border-emerald-500/40 shrink-0" 
-                onError={(e) => {
-                  // Fallback to icon
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
-            ) : (
-              <ImageIcon className="w-3 h-3 text-emerald-400" />
-            )}
-            <span className="font-bold tracking-tight">Foto</span>
-          </>
-        )}
-      </button>
+      {/* Small inline thumbnail / badge */}
+      {!isVideo ? (
+        // IMAGE: a real, visible thumbnail right next to the name. Click to enlarge.
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsOpen(true);
+          }}
+          title={`Perbesar foto: ${title || ''}`}
+          className={`inline-flex items-center justify-center shrink-0 align-middle ml-2 rounded-lg overflow-hidden border-2 border-emerald-600/60 hover:border-emerald-400 shadow-sm transition-all cursor-pointer group relative ${className}`}
+          style={{ width: 36, height: 36 }}
+        >
+          {rawUrl.startsWith('http') || rawUrl.startsWith('data:') ? (
+            <img
+              src={rawUrl}
+              alt={title || 'Foto'}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+              }}
+            />
+          ) : (
+            <div className="w-full h-full bg-emerald-950 flex items-center justify-center">
+              <ImageIcon className="w-4 h-4 text-emerald-400" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
+            <Maximize2 className="w-3.5 h-3.5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        </button>
+      ) : (
+        // VIDEO: no easy still frame to show, keep a compact play badge.
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsOpen(true);
+          }}
+          title={`Putar video: ${title || ''}`}
+          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-semibold transition-all shadow-sm cursor-pointer align-middle ml-2 group bg-rose-950/80 hover:bg-rose-900 border-rose-700/80 text-rose-200 ${className}`}
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+          </span>
+          <Play className="w-3 h-3 fill-rose-300 text-rose-300 group-hover:scale-110 transition-transform" />
+          <span className="font-bold tracking-tight">Video</span>
+        </button>
+      )}
 
       {/* Lightbox Modal */}
       {isOpen && (

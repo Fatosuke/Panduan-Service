@@ -10,7 +10,9 @@ import {
   AmpliItem,
   ToolItem,
   TesAmpliItem,
-  TesSpeakerItem
+  TesSpeakerItem,
+  KomponenItem,
+  KonsultasiTicket
 } from '../types';
 import { 
   INITIAL_WHITELIST, 
@@ -21,7 +23,8 @@ import {
   INITIAL_AMPLIS,
   INITIAL_TOOLS,
   INITIAL_TEST_AMPLI_STEPS,
-  INITIAL_TEST_SPEAKER_STEPS
+  INITIAL_TEST_SPEAKER_STEPS,
+  INITIAL_KOMPONEN
 } from '../data/initialData';
 import {
   toolsStore,
@@ -33,6 +36,8 @@ import {
   staffStore,
   serviceLogStore,
   whitelistStore,
+  komponenKatalogStore,
+  konsultasiStore,
   subscribeToAnyDataChange,
   refreshAllStoresNow,
   pingBackend,
@@ -114,15 +119,29 @@ export class SpreadsheetService {
   }
 
   /**
-   * Aturan Otorisasi (server-enforced via firestore.rules):
-   * Hanya akun dengan accessType === 'fulltime' di Firestore yang bisa
-   * menambah / mengedit / menghapus / mengimpor data.
+   * Aturan Otorisasi (server-enforced via google-apps-script/Code.gs):
+   * Akun dengan accessType 'fulltime' ATAU 'editor' bisa menambah / mengedit
+   * / menghapus / mengimpor data. Akun 'editor' biasanya diberikan ke anak
+   * PKL - bisa bantu edit data, tapi tidak bisa membuka panel Kelola Akun
+   * (lihat isFulltimeAdmin di bawah).
    */
   public static canEditSpreadsheet(user?: User | null): boolean {
     return this.hasFulltimeAccess(user ?? null);
   }
 
   public static hasFulltimeAccess(user?: User | null): boolean {
+    const targetUser = user ?? null;
+    if (!targetUser) return false;
+    return targetUser.accessType === 'fulltime' || targetUser.accessType === 'editor';
+  }
+
+  /**
+   * Stricter than hasFulltimeAccess: true only for real Fulltime admins.
+   * Use this (not hasFulltimeAccess) to gate anything that manages OTHER
+   * accounts' access level, like the "Kelola Akun" panel - an Editor (PKL)
+   * account should never be able to grant itself or others more access.
+   */
+  public static isFulltimeAdmin(user?: User | null): boolean {
     const targetUser = user ?? null;
     if (!targetUser) return false;
     return targetUser.accessType === 'fulltime';
@@ -266,6 +285,73 @@ export class SpreadsheetService {
 
   public static saveStaffContacts(contacts: StaffContact[]): void {
     void staffStore.replaceAll(contacts);
+  }
+
+  // ==========================================
+  // KATALOG KOMPONEN ELEKTRONIKA (Pasif / Aktif)
+  // ==========================================
+  public static getKomponenKatalog(): KomponenItem[] {
+    return komponenKatalogStore.isReady() ? komponenKatalogStore.getAll() : INITIAL_KOMPONEN;
+  }
+
+  public static saveKomponenKatalog(items: KomponenItem[]): void {
+    void komponenKatalogStore.replaceAll(items);
+  }
+
+  public static addKomponenKatalogItem(data: Omit<KomponenItem, 'id'>): KomponenItem {
+    const newItem: KomponenItem = { ...data, id: `komp-${Date.now()}` };
+    void komponenKatalogStore.add(newItem);
+    return newItem;
+  }
+
+  public static updateKomponenKatalogItem(item: KomponenItem): void {
+    void komponenKatalogStore.update(item);
+  }
+
+  public static deleteKomponenKatalogItem(id: string): void {
+    void komponenKatalogStore.remove(id);
+  }
+
+  public static resetKomponenKatalog(): KomponenItem[] {
+    this.saveKomponenKatalog(INITIAL_KOMPONEN);
+    return INITIAL_KOMPONEN;
+  }
+
+  // ==========================================
+  // TIKET KONSULTASI ("Tanyakan Pada Pembina")
+  // Siapapun yang sudah login & disetujui (bukan cuma Fulltime/Editor) bisa
+  // membuat tiket - hanya akun Fulltime/Editor yang bisa menjawab / mengubah
+  // statusnya (lihat requireSignedIn_ vs requireEditAccess_ di Code.gs).
+  // ==========================================
+  public static getKonsultasiTickets(): KonsultasiTicket[] {
+    return konsultasiStore.isReady() ? konsultasiStore.getAll() : [];
+  }
+
+  public static addKonsultasiTicket(data: Omit<KonsultasiTicket, 'id' | 'status' | 'createdAt'>): KonsultasiTicket {
+    const newTicket: KonsultasiTicket = {
+      ...data,
+      id: `tiket-${Date.now()}`,
+      status: 'Menunggu',
+      createdAt: new Date().toLocaleDateString('id-ID', {
+        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      })
+    };
+    void konsultasiStore.add(newTicket);
+    return newTicket;
+  }
+
+  public static answerKonsultasiTicket(id: string, jawaban: string): void {
+    const ticket = this.getKonsultasiTickets().find(t => t.id === id);
+    if (!ticket) return;
+    const updated: KonsultasiTicket = {
+      ...ticket,
+      jawaban,
+      status: 'Dijawab',
+      answeredAt: new Date().toLocaleDateString('id-ID', {
+        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      })
+    };
+    void konsultasiStore.update(updated);
   }
 
   // Robust CSV / TSV parser that supports quotes, commas, tabs (copy-paste from Google Sheets)

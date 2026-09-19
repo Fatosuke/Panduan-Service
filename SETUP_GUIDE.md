@@ -38,7 +38,7 @@ sekitar 15-20 menit.
 1. Di bagian atas editor Apps Script, ada dropdown pilihan fungsi (biasanya bertuliskan `doGet` secara default). Ubah jadi **`setupSheets`**.
 2. Klik tombol **Run** (▶️).
 3. Pertama kali jalan, Google akan minta izin ("Authorization required"). Klik **Review permissions**, pilih akun Google Anda, klik **Advanced** kalau muncul peringatan "unverified app", lalu **Go to [nama project] (unsafe)** dan **Allow**. Ini aman - itu script milik Anda sendiri.
-4. Setelah selesai jalan (tidak ada tanda error merah di bawah), kembali ke tab Google Sheet - Anda akan lihat 10 tab baru sudah otomatis dibuat: `Alat_Kerja`, `Tipe_Ampli`, `Komponen_Rusak_Bagus`, `Pengetesan_Amplifier`, `Pengetesan_Speaker`, `Nomor_Service`, `Whitelist_Siswa`, `Analisis_Kerusakan`, `Kontak_Staff`, `Akun_Pengguna` - masing-masing dengan header kolom yang sudah sesuai.
+4. Setelah selesai jalan (tidak ada tanda error merah di bawah), kembali ke tab Google Sheet - Anda akan lihat 12 tab baru sudah otomatis dibuat: `Alat_Kerja`, `Tipe_Ampli`, `Komponen_Rusak_Bagus`, `Pengetesan_Amplifier`, `Pengetesan_Speaker`, `Nomor_Service`, `Whitelist_Siswa`, `Analisis_Kerusakan`, `Kontak_Staff`, `Katalog_Komponen`, `Tiket_Konsultasi`, `Akun_Pengguna` - masing-masing dengan header kolom yang sudah sesuai.
 
 *(Opsional: kalau Anda punya data lama, tinggal copy-paste isinya ke tab yang sesuai, di bawah baris header. Jangan ubah nama kolom di baris pertama.)*
 
@@ -56,24 +56,30 @@ sekitar 15-20 menit.
    `https://script.google.com/macros/s/AKfycb.../exec`
    **Salin URL ini** - akan dipakai di Langkah 5.
 
-## Langkah 5 - Sambungkan Web App ke URL Apps Script
+## Langkah 5 - Upload Project ke GitHub
 
-1. Di folder project (yang saya kirimkan), buat file baru bernama **`.env.local`** (kalau belum ada), sejajar dengan `package.json`.
-2. Isi dengan:
-   ```
-   VITE_APPS_SCRIPT_URL="https://script.google.com/macros/s/AKfycb.../exec"
-   ```
-   (ganti dengan URL asli dari Langkah 4)
-3. Simpan.
+(Kalau Anda tidak pakai terminal/VS Code sama sekali, ini caranya lewat website saja.)
 
-## Langkah 6 - Install & Coba Jalankan
+1. Extract file zip project yang saya kirimkan di komputer Anda.
+2. Buka [github.com](https://github.com/), login, klik **New repository**.
+3. Beri nama misalnya `panduan-service`, biarkan **Private** kalau tidak mau publik, klik **Create repository**.
+4. Di halaman repo kosong itu, klik link kecil **"uploading an existing file"**.
+5. Buka folder hasil extract tadi, **select semua file & folder di dalamnya**, drag-and-drop ke halaman GitHub itu.
+6. Scroll ke bawah, klik **Commit changes**.
 
-```bash
-npm install
-npm run dev
-```
+## Langkah 6 - Deploy ke Vercel (Gratis, Tanpa Terminal)
 
-Buka di browser sesuai alamat yang muncul di terminal. Coba **Registrasi Akun Baru** dengan email & password Anda sendiri - kalau berhasil, berarti koneksi ke Apps Script sudah benar.
+1. Buka [vercel.com](https://vercel.com/), klik **Sign Up** > **Continue with GitHub** (pakai akun GitHub yang sama).
+2. Di dashboard, klik **Add New** > **Project**.
+3. Pilih repo `panduan-service` yang baru diupload, klik **Import**.
+4. Vercel otomatis mendeteksi ini project Vite - biarkan pengaturan **Build Command** & **Output Directory** default (sudah benar otomatis).
+5. Sebelum klik Deploy, buka bagian **Environment Variables**, isi:
+   - Name: `VITE_APPS_SCRIPT_URL`
+   - Value: URL Apps Script dari Langkah 4 (`https://script.google.com/macros/s/AKfycb.../exec`)
+6. Klik **Deploy**. Tunggu ±1-2 menit.
+7. Setelah selesai, Anda dapat URL live gratis seperti `panduan-service.vercel.app` - aplikasi sudah online.
+
+Coba buka URL itu, lakukan **Registrasi Akun Baru** dengan email & password Anda sendiri - kalau berhasil, berarti koneksi ke Apps Script sudah benar.
 
 ## Langkah 7 - Jadikan Diri Sendiri Admin (Fulltime) Pertama
 
@@ -83,12 +89,16 @@ Sengaja tidak ada nama admin yang di-hardcode di kode (itu justru celah keamanan
 2. Buka tab **`Akun_Pengguna`**.
 3. Cari baris dengan email Anda.
 4. Ubah kolom **`accessType`** dari `none` menjadi `fulltime` (ketik langsung di sel-nya).
-5. Kembali ke aplikasi, logout lalu login lagi. Anda sekarang admin Fulltime - akan muncul tombol **Kelola Akun** di header.
+5. Kembali ke aplikasi (URL Vercel Anda), logout lalu login lagi. Anda sekarang admin Fulltime - akan muncul tombol **Kelola Akun** di header.
 6. Untuk akun berikutnya (Agas, Tommy, dst), mereka tinggal daftar sendiri lewat halaman registrasi, lalu Anda klik **Kelola Akun** di app dan atur level aksesnya (Fulltime/6 Bulan) - tidak perlu lagi buka spreadsheet secara manual.
 
-## Langkah 8 - Deploy Ulang Aplikasi Web
+## Langkah 8 - Update Kode di Masa Depan
 
-Cara deploy-nya sama seperti sebelumnya (lewat AI Studio / hosting yang sudah Anda pakai). Pastikan environment variable `VITE_APPS_SCRIPT_URL` juga diisi di pengaturan hosting/secrets-nya (bukan cuma di `.env.local` lokal Anda), supaya versi yang online juga tersambung.
+Kalau nanti ada perubahan kode lagi (dari saya atau Anda sendiri):
+1. Upload ulang file yang berubah ke repo GitHub yang sama (drag-and-drop menimpa file lama lewat tombol **Add file > Upload files**, atau edit langsung satu file lewat ikon pensil di GitHub).
+2. Vercel otomatis mendeteksi perubahan itu dan build ulang sendiri - tidak perlu klik apapun lagi di Vercel.
+
+*(Kalau suatu saat Anda ingin tetap pakai Google AI Studio juga untuk fitur editingnya, itu masih bisa - tinggal pakai fitur "Import from GitHub" di AI Studio Build untuk menarik repo yang sama. Tapi untuk sekadar deploy web app-nya, Vercel saja sudah cukup dan lebih sederhana.)*
 
 ---
 
@@ -102,9 +112,9 @@ Cara deploy-nya sama seperti sebelumnya (lewat AI Studio / hosting yang sudah An
 
 ## Pemecahan Masalah
 
-- **"Backend Belum Dikonfigurasi" saat buka app** - `VITE_APPS_SCRIPT_URL` belum diisi di `.env.local`, atau salah ketik. Ulangi Langkah 5.
+- **"Backend Belum Dikonfigurasi" saat buka app** - `VITE_APPS_SCRIPT_URL` belum diisi di Environment Variables Vercel, atau salah ketik. Cek di Vercel: Project > Settings > Environment Variables, lalu klik **Redeploy** setelah memperbaikinya (mengubah env var tidak otomatis memicu build ulang).
 - **"Gagal terhubung ke Apps Script" / status merah di Spreadsheet Sync** - Buka URL Apps Script Anda langsung di browser dengan tambahan `?action=ping` di belakangnya (jadi `.../exec?action=ping`). Harusnya muncul teks JSON `{"ok":true,...}`. Kalau muncul halaman login Google atau error, cek lagi pengaturan **Who has access: Anyone** di Langkah 4.
 - **Register/login gagal terus** - buka Apps Script Editor > menu **Executions** (ikon jam di sidebar kiri) untuk lihat log error detail dari percobaan terakhir.
-- **Setelah ubah kode `Code.gs`, perubahan tidak muncul di app** - Anda perlu bikin **New deployment** lagi tiap kali mengubah `Code.gs` (Deploy > Manage deployments > ikon pensil > pilih versi baru > Deploy), URL-nya biasanya tetap sama jadi tidak perlu ganti `.env.local` lagi, kecuali Anda memilih "New deployment" murni.
+- **Setelah ubah kode `Code.gs`, perubahan tidak muncul di app** - Anda perlu bikin **New deployment** lagi tiap kali mengubah `Code.gs` (Deploy > Manage deployments > ikon pensil > pilih versi baru > Deploy). Kalau memilih opsi "New deployment" (bukan update versi), URL-nya akan berubah - update juga `VITE_APPS_SCRIPT_URL` di Vercel dan **Redeploy**.
 - **Tombol "Kelola Akun" tidak muncul** - akun Anda belum `accessType: fulltime` di tab `Akun_Pengguna`, ulangi Langkah 7.
 - **Data hilang/kosong padahal tadinya ada** - cek tab yang bersangkutan di Google Sheet langsung, karena Sheet itu sendiri adalah sumber datanya. Kalau baris masih ada di Sheet tapi tidak muncul di app, klik **Sinkronkan Sekarang** di menu Spreadsheet Sync.

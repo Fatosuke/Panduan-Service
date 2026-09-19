@@ -76,8 +76,10 @@ export const IntroGuideModal: React.FC<IntroGuideModalProps> = ({
                 Status Akun Anda
               </span>
               <p className="text-slate-400 text-[11px]">
-                {currentUser?.accessType === 'fulltime' 
-                  ? 'Akun Fulltime Access (Akses penuh termasuk fitur sinkronisasi spreadsheet).' 
+                {currentUser?.accessType === 'fulltime'
+                  ? 'Akun Fulltime Access (Akses penuh termasuk fitur sinkronisasi spreadsheet).'
+                  : currentUser?.accessType === 'editor'
+                  ? 'Akun Editor (PKL) - bisa membantu menambah & mengedit data panduan.'
                   : 'Akun 6 Bulan Akses Panduan Service Audio.'}
               </p>
             </div>

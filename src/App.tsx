@@ -206,6 +206,7 @@ export default function App() {
   }
 
   const isFulltime = SpreadsheetService.hasFulltimeAccess(currentUser);
+  const isAdmin = SpreadsheetService.isFulltimeAdmin(currentUser);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
@@ -277,8 +278,8 @@ export default function App() {
               </button>
             )}
 
-            {/* User management (approve accounts / set access level) */}
-            {isFulltime && (
+            {/* User management (approve accounts / set access level) - admin (Fulltime) only */}
+            {isAdmin && (
               <button
                 type="button"
                 onClick={() => setIsUserManagementOpen(true)}
@@ -495,6 +496,7 @@ export default function App() {
         {activeView === 'komponen-pasif' && (
           <KomponenView 
             initialSubCategory="pasif" 
+            currentUser={currentUser}
             onBackToMain={() => setActiveView('main')} 
           />
         )}
@@ -503,18 +505,20 @@ export default function App() {
         {activeView === 'komponen-aktif' && (
           <KomponenView 
             initialSubCategory="aktif" 
+            currentUser={currentUser}
             onBackToMain={() => setActiveView('main')} 
           />
         )}
 
         {/* VIEW: TOOLS */}
         {activeView === 'tools' && (
-          <ToolsView onBackToMain={() => setActiveView('main')} />
+          <ToolsView currentUser={currentUser} onBackToMain={() => setActiveView('main')} />
         )}
 
         {/* VIEW: ANALISIS (3 Steps + Spreadsheet matching + "tanyakan pada pembina") */}
         {activeView === 'analisis' && (
           <AnalisisView 
+            currentUser={currentUser}
             onBackToMain={() => setActiveView('main')} 
             onNavigateToHelp={() => setActiveView('help')}
           />
@@ -522,7 +526,7 @@ export default function App() {
 
         {/* VIEW: HELP (Pembina & Admin) */}
         {activeView === 'help' && (
-          <HelpView onBackToMain={() => setActiveView('main')} />
+          <HelpView currentUser={currentUser} onBackToMain={() => setActiveView('main')} />
         )}
 
       </main>

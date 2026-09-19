@@ -30,6 +30,8 @@ import {
   StaffContact,
   ServiceLogRecord,
   WhitelistEntry,
+  KomponenItem,
+  KonsultasiTicket,
 } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -335,6 +337,8 @@ export const analisisStore = createCollectionStore<AnalisisUnitRecord>('Analisis
 export const staffStore = createCollectionStore<StaffContact>('Kontak_Staff');
 export const serviceLogStore = createCollectionStore<ServiceLogRecord>('Nomor_Service');
 export const whitelistStore = createCollectionStore<WhitelistEntry>('Whitelist_Siswa');
+export const komponenKatalogStore = createCollectionStore<KomponenItem>('Katalog_Komponen');
+export const konsultasiStore = createCollectionStore<KonsultasiTicket>('Tiket_Konsultasi');
 
 const allStores = [
   toolsStore,
@@ -346,6 +350,8 @@ const allStores = [
   staffStore,
   serviceLogStore,
   whitelistStore,
+  komponenKatalogStore,
+  konsultasiStore,
 ];
 
 export function startAllStores(): void {

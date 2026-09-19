@@ -28,6 +28,8 @@ const SCHEMAS = {
   Whitelist_Siswa: ['id', 'name', 'accessType', 'department', 'notes'],
   Analisis_Kerusakan: ['id', 'unitName', 'serialNumber', 'damagedComponent', 'diagnosisResult', 'rootCause', 'repairSteps', 'recommendedParts', 'difficulty', 'estimatedTime'],
   Kontak_Staff: ['id', 'name', 'role', 'title', 'phone', 'email', 'status', 'specialty'],
+  Katalog_Komponen: ['id', 'name', 'category', 'subType', 'symbol', 'description', 'functionDesc', 'howToTest', 'goodCondition', 'badCondition', 'safetyNote', 'pinoutOrColorCode', 'image'],
+  Tiket_Konsultasi: ['id', 'unitName', 'damagedComponent', 'pembinaTujuan', 'catatan', 'askedBy', 'status', 'jawaban', 'createdAt', 'answeredAt'],
   // Akun_Pengguna menyimpan passwordHash & passwordSalt - dua kolom ini
   // TIDAK PERNAH dikirim ke client (lihat stripSecrets_).
   Akun_Pengguna: ['id', 'fullName', 'email', 'gender', 'birthDate', 'accessType', 'accessExpiry', 'registeredAt', 'passwordHash', 'passwordSalt'],
@@ -47,8 +49,16 @@ const ARRAY_FIELDS = {
 const PROTECTED_SHEETS = [
   'Alat_Kerja', 'Tipe_Ampli', 'Komponen_Rusak_Bagus', 'Pengetesan_Amplifier',
   'Pengetesan_Speaker', 'Nomor_Service', 'Whitelist_Siswa', 'Analisis_Kerusakan',
-  'Kontak_Staff',
+  'Kontak_Staff', 'Katalog_Komponen', 'Tiket_Konsultasi',
 ];
+
+// Any signed-in, approved account (fulltime, editor, or 6months) may CREATE
+// a row in these sheets - not just fulltime/editor. Used for the "Tanyakan
+// Pada Pembina" consultation ticket, so any technician can ask a question
+// even if they can't edit the knowledge base themselves. Answering /
+// editing / deleting a ticket still requires fulltime or editor (see
+// requireEditAccess_ below, used by handleUpdate_/handleDelete_).
+const OPEN_ADD_SHEETS = ['Tiket_Konsultasi'];
 
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000; // 30 hari
 
@@ -188,7 +198,7 @@ function handleSetAccess_(body) {
   }
   const targetId = body.targetUserId;
   const accessType = body.accessType;
-  if (!['fulltime', '6months', 'none'].includes(accessType)) {
+  if (!['fulltime', 'editor', '6months', 'none'].includes(accessType)) {
     return { ok: false, error: 'Level akses tidak valid.' };
   }
 
@@ -210,10 +220,15 @@ function handleSetAccess_(body) {
 }
 
 // ============================================================================
-// DATA CRUD HANDLERS (dilindungi: hanya akun fulltime yang boleh menulis)
+// DATA CRUD HANDLERS (dilindungi: hanya akun fulltime atau editor yang boleh
+// menulis. Editor biasanya anak PKL - bisa bantu edit data, tapi tidak bisa
+// mengubah akses akun lain, lihat handleSetAccess_ di atas yang tetap
+// mengharuskan 'fulltime').
 // ============================================================================
 function handleAdd_(body) {
-  const check = requireFulltime_(body.token, body.sheet);
+  const check = OPEN_ADD_SHEETS.indexOf(body.sheet) !== -1
+    ? requireSignedIn_(body.token, body.sheet)
+    : requireEditAccess_(body.token, body.sheet);
   if (!check.ok) return check;
 
   const payload = body.payload || {};
@@ -223,7 +238,7 @@ function handleAdd_(body) {
 }
 
 function handleUpdate_(body) {
-  const check = requireFulltime_(body.token, body.sheet);
+  const check = requireEditAccess_(body.token, body.sheet);
   if (!check.ok) return check;
 
   const payload = body.payload || {};
@@ -235,7 +250,7 @@ function handleUpdate_(body) {
 }
 
 function handleDelete_(body) {
-  const check = requireFulltime_(body.token, body.sheet);
+  const check = requireEditAccess_(body.token, body.sheet);
   if (!check.ok) return check;
 
   const sheet = getSheet_(body.sheet);
@@ -246,7 +261,7 @@ function handleDelete_(body) {
 }
 
 function handleReplaceAll_(body) {
-  const check = requireFulltime_(body.token, body.sheet);
+  const check = requireEditAccess_(body.token, body.sheet);
   if (!check.ok) return check;
 
   const sheet = getSheet_(body.sheet);
@@ -264,15 +279,28 @@ function handleReplaceAll_(body) {
   return { ok: true };
 }
 
-function requireFulltime_(token, sheetName) {
+function requireEditAccess_(token, sheetName) {
   assertKnownSheet_(sheetName);
   if (PROTECTED_SHEETS.indexOf(sheetName) === -1) {
     return { ok: false, error: 'Sheet ini tidak bisa diubah lewat API.' };
   }
   const user = getUserBySessionToken_(token);
   if (!user) return { ok: false, error: 'Sesi tidak valid. Silakan login ulang.' };
-  if (user.accessType !== 'fulltime') {
-    return { ok: false, error: 'Akses Ditolak: hanya akun Fulltime yang bisa mengubah data.' };
+  if (user.accessType !== 'fulltime' && user.accessType !== 'editor') {
+    return { ok: false, error: 'Akses Ditolak: hanya akun Fulltime atau Editor yang bisa mengubah data.' };
+  }
+  return { ok: true };
+}
+
+// Looser check for OPEN_ADD_SHEETS: any signed-in, approved account
+// (fulltime / editor / 6months) may create a row - just not 'none' (still
+// pending admin approval).
+function requireSignedIn_(token, sheetName) {
+  assertKnownSheet_(sheetName);
+  const user = getUserBySessionToken_(token);
+  if (!user) return { ok: false, error: 'Sesi tidak valid. Silakan login ulang.' };
+  if (user.accessType === 'none') {
+    return { ok: false, error: 'Akun Anda masih menunggu persetujuan admin.' };
   }
   return { ok: true };
 }
@@ -288,7 +316,7 @@ function idPrefix_(sheetName) {
     Alat_Kerja: 'tool', Tipe_Ampli: 'amp', Komponen_Rusak_Bagus: 'guide',
     Pengetesan_Amplifier: 'step-amp', Pengetesan_Speaker: 'step-spk',
     Nomor_Service: 'srv', Whitelist_Siswa: 'wl', Analisis_Kerusakan: 'diag',
-    Kontak_Staff: 'staff',
+    Kontak_Staff: 'staff', Katalog_Komponen: 'komp', Tiket_Konsultasi: 'tiket',
   };
   return map[sheetName] || 'item';
 }

@@ -20,15 +20,16 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { SpreadsheetService } from '../../services/spreadsheetService';
-import { AnalisisUnitRecord, StaffContact, SpreadsheetConfig } from '../../types';
-import { STAFF_CONTACTS } from '../../data/initialData';
+import { AnalisisUnitRecord, StaffContact, SpreadsheetConfig, User } from '../../types';
 
 interface AnalisisViewProps {
+  currentUser?: User | null;
   onBackToMain?: () => void;
   onNavigateToHelp?: () => void;
 }
 
 export const AnalisisView: React.FC<AnalisisViewProps> = ({ 
+  currentUser,
   onBackToMain,
   onNavigateToHelp 
 }) => {
@@ -54,7 +55,7 @@ export const AnalisisView: React.FC<AnalisisViewProps> = ({
 
   // Consultation state for when "tanyakan pada pembina" triggers
   const [selectedPembina, setSelectedPembina] = useState<StaffContact>(
-    STAFF_CONTACTS.filter(s => s.role === 'Pembina')[0]
+    SpreadsheetService.getStaffContacts().filter(s => s.role === 'Pembina')[0]
   );
   const [consultationSent, setConsultationSent] = useState(false);
 
@@ -208,9 +209,16 @@ export const AnalisisView: React.FC<AnalisisViewProps> = ({
     setQueryResult(null);
   };
 
-  const pembinaList = STAFF_CONTACTS.filter(s => s.role === 'Pembina');
+  const pembinaList = SpreadsheetService.getStaffContacts().filter(s => s.role === 'Pembina');
 
   const handleSendToPembina = () => {
+    SpreadsheetService.addKonsultasiTicket({
+      unitName,
+      damagedComponent,
+      pembinaTujuan: selectedPembina.name,
+      catatan: 'Mohon arahan dan panduan teknis langkah servis untuk unit ini karena belum ada di spreadsheet.',
+      askedBy: currentUser?.fullName || 'Teknisi'
+    });
     setConsultationSent(true);
   };
 

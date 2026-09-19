@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, ShieldCheck, Clock, Ban, Users, Loader2 } from 'lucide-react';
+import { X, ShieldCheck, Clock, Ban, Users, Loader2, PenLine } from 'lucide-react';
 import { User, AccessType } from '../types';
 import { subscribeToUsers, setUserAccessType } from '../services/backendService';
 
@@ -11,12 +11,14 @@ interface UserManagementPanelProps {
 
 const ACCESS_LABEL: Record<AccessType, string> = {
   fulltime: 'Fulltime',
+  editor: 'Editor (PKL)',
   '6months': '6 Bulan',
   none: 'Menunggu Persetujuan',
 };
 
 const ACCESS_STYLE: Record<AccessType, string> = {
   fulltime: 'bg-emerald-950/60 border-emerald-700/60 text-emerald-300',
+  editor: 'bg-cyan-950/60 border-cyan-700/60 text-cyan-300',
   '6months': 'bg-amber-950/60 border-amber-700/60 text-amber-300',
   none: 'bg-rose-950/60 border-rose-700/60 text-rose-300',
 };
@@ -129,9 +131,18 @@ export const UserManagementPanel: React.FC<UserManagementPanelProps> = ({
                     </button>
                     <button
                       type="button"
+                      disabled={isSaving || u.accessType === 'editor'}
+                      onClick={() => handleChangeAccess(u.id, 'editor')}
+                      title="Jadikan Editor (PKL) - bisa bantu edit data"
+                      className="p-2 rounded-lg bg-cyan-950/50 hover:bg-cyan-900/60 border border-cyan-800/60 text-cyan-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <PenLine className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
                       disabled={isSaving || u.accessType === '6months'}
                       onClick={() => handleChangeAccess(u.id, '6months')}
-                      title="Jadikan 6 Bulan"
+                      title="Jadikan 6 Bulan (lihat saja, tidak bisa edit)"
                       className="p-2 rounded-lg bg-amber-950/50 hover:bg-amber-900/60 border border-amber-800/60 text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                       <Clock className="w-4 h-4" />
