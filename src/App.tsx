@@ -17,7 +17,8 @@ import {
   Cpu,
   FileSearch,
   Sparkles,
-  BookOpen
+  BookOpen,
+  X
 } from 'lucide-react';
 import { SpreadsheetService } from './services/spreadsheetService';
 import { User } from './types';
@@ -55,6 +56,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authResolved, setAuthResolved] = useState<boolean>(false);
   const [isDataReady, setIsDataReady] = useState<boolean>(false);
+  const [storeErrors, setStoreErrors] = useState<{ sheet: string; error: string }[]>([]);
+  const [dismissedErrorBanner, setDismissedErrorBanner] = useState<boolean>(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState<boolean>(false);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState<boolean>(false);
@@ -93,16 +96,17 @@ export default function App() {
 
   // Track when every collection has loaded at least once from the
   // spreadsheet, so we can show a brief loading state instead of a flash
-  // of empty tabs.
+  // of empty tabs. A collection that keeps failing (e.g. Apps Script not
+  // redeployed with a newer Code.gs yet) still counts as "ready" - it just
+  // stays empty - so one bad sheet never blocks the whole app forever.
   useEffect(() => {
     if (!currentUser) return;
-    if (allStoresReady()) {
-      setIsDataReady(true);
-      return;
-    }
-    const unsub = subscribeToAnyDataChange(() => {
+    const checkStatus = () => {
       if (allStoresReady()) setIsDataReady(true);
-    });
+      setStoreErrors(SpreadsheetService.getStoreErrors());
+    };
+    checkStatus();
+    const unsub = subscribeToAnyDataChange(checkStatus);
     return unsub;
   }, [currentUser]);
 
@@ -333,6 +337,37 @@ export default function App() {
               className="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700"
             >
               &larr; Kembali ke 5 Tab Halaman Utama
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* DATA LOAD ERROR BANNER (admin only - helps diagnose Apps Script deploy issues) */}
+      {isAdmin && storeErrors.length > 0 && !dismissedErrorBanner && (
+        <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-4">
+          <div className="p-4 rounded-2xl bg-rose-950/60 border border-rose-700/60 text-rose-200 text-xs sm:text-sm flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-bold text-rose-200 mb-1">
+                {storeErrors.length} tab data gagal dimuat dari spreadsheet
+              </p>
+              <ul className="space-y-0.5 text-[11px] sm:text-xs text-rose-300/90 mb-2">
+                {storeErrors.map((e) => (
+                  <li key={e.sheet}>
+                    <strong>{e.sheet}</strong>: {e.error}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-rose-300/80">
+                Biasanya karena Apps Script belum di-deploy ulang dengan Code.gs terbaru. Buka Apps Script Editor Anda &gt; Deploy &gt; Manage deployments &gt; buat versi baru.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDismissedErrorBanner(true)}
+              className="p-1 rounded-lg text-rose-400 hover:text-rose-200 hover:bg-rose-900/60 transition-colors shrink-0"
+            >
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>

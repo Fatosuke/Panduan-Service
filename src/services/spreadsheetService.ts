@@ -42,6 +42,7 @@ import {
   refreshAllStoresNow,
   pingBackend,
   isBackendConfigured,
+  getStoreErrors,
 } from './backendService';
 
 const STORAGE_KEYS = {
@@ -169,6 +170,15 @@ export class SpreadsheetService {
   /** Simple connectivity check against the deployed Apps Script Web App. */
   public static async pingBackend(): Promise<void> {
     await pingBackend();
+  }
+
+  /**
+   * Any data tab that failed to load on its last try - e.g. because Apps
+   * Script hasn't been redeployed with a newer Code.gs yet and doesn't
+   * recognize a sheet name. Empty array means everything loaded fine.
+   */
+  public static getStoreErrors(): { sheet: string; error: string }[] {
+    return getStoreErrors();
   }
 
   // Component Media Guides (Image / Video) for Cara Mengenali Komponen Rusak/Bagus

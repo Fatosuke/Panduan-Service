@@ -213,6 +213,7 @@ type Listener = () => void;
 function createCollectionStore<T extends { id: string }>(sheetName: string) {
   let cache: T[] = [];
   let ready = false;
+  let lastError: string | null = null;
   const listeners = new Set<Listener>();
   let pollTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -225,9 +226,16 @@ function createCollectionStore<T extends { id: string }>(sheetName: string) {
       const json = await apiGet('getAll', { sheet: sheetName });
       cache = json.data;
       ready = true;
+      lastError = null;
       notify();
     } catch (e) {
       console.error(`[backendService] Gagal memuat "${sheetName}":`, e);
+      lastError = e instanceof Error ? e.message : String(e);
+      // Mark ready anyway so one broken/unrecognized sheet doesn't block the
+      // whole app forever on the loading screen - this collection just
+      // stays empty (and keeps retrying on the next poll) instead.
+      ready = true;
+      notify();
     }
   }
 
@@ -257,6 +265,10 @@ function createCollectionStore<T extends { id: string }>(sheetName: string) {
 
   function isReady(): boolean {
     return ready;
+  }
+
+  function getLastError(): string | null {
+    return lastError;
   }
 
   /** Force an immediate refresh regardless of the polling timer. */
@@ -325,7 +337,7 @@ function createCollectionStore<T extends { id: string }>(sheetName: string) {
     }
   }
 
-  return { start, stop, subscribe, getAll, isReady, refresh, add, update, remove, replaceAll };
+  return { start, stop, subscribe, getAll, isReady, getLastError, refresh, add, update, remove, replaceAll, sheetName };
 }
 
 export const toolsStore = createCollectionStore<ToolItem>('Alat_Kerja');
@@ -369,6 +381,13 @@ export function subscribeToAnyDataChange(listener: Listener): () => void {
 
 export function allStoresReady(): boolean {
   return allStores.every((s) => s.isReady());
+}
+
+/** Any collection whose most recent fetch failed - {sheet, error} pairs. */
+export function getStoreErrors(): { sheet: string; error: string }[] {
+  return allStores
+    .filter((s) => s.getLastError())
+    .map((s) => ({ sheet: s.sheetName, error: s.getLastError() as string }));
 }
 
 /** Force every collection to refetch right now (e.g. a "Sync Now" button). */
