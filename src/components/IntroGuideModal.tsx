@@ -65,7 +65,7 @@ export const IntroGuideModal: React.FC<IntroGuideModalProps> = ({
               Halo {currentUser?.fullName || 'Sobat Teknisi'}! 👋
             </h4>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Aplikasi ini dirancang khusus untuk memandu Anda dalam perakitan, pemeriksaan, diagnosa kerusakan, hingga pencatatan servis perangkat audio & amplifier secara sistematis dan terintegrasi langsung dengan database Google Sheets.
+              Aplikasi ini dirancang khusus untuk memandu Anda dalam perakitan, pemeriksaan, diagnosa kerusakan, hingga pencatatan servis perangkat audio & amplifier.
             </p>
           </div>
 
@@ -114,7 +114,7 @@ export const IntroGuideModal: React.FC<IntroGuideModalProps> = ({
               </span>
               <div>
                 <strong className="text-white">Alat Service:</strong>
-                <p className="text-slate-400 text-[11px]">Standar perlengkapan kerja: multitester analog & digital, solder, PSU simetris, osiloskop, dan dummy load.</p>
+                <p className="text-slate-400 text-[11px]">Standar Perlengkapan kerja: multitester analog / digital, audio generator, Power supply, Dummy Load, Osiloskop.</p>
               </div>
             </div>
 
@@ -123,8 +123,8 @@ export const IntroGuideModal: React.FC<IntroGuideModalProps> = ({
                 Tab 2
               </span>
               <div>
-                <strong className="text-white">Rakit & Jalur Ampli:</strong>
-                <p className="text-slate-400 text-[11px]">Wiring kabel ground bintang, protektor speaker, simetris PSU trafo/SMPS, dan penataan kabel audio.</p>
+                <strong className="text-white">Nama dan Tipe Amplifier:</strong>
+                <p className="text-slate-400 text-[11px]">Jenis-jenis amplifier TOA dan tipenya.</p>
               </div>
             </div>
 
@@ -134,7 +134,7 @@ export const IntroGuideModal: React.FC<IntroGuideModalProps> = ({
               </span>
               <div>
                 <strong className="text-white">Cek Komponen Rusak vs Bagus:</strong>
-                <p className="text-slate-400 text-[11px]">Membedakan komponen normal dan rusak via visual, buzzer, ohm meter, serta upload media gambar/video.</p>
+                <p className="text-slate-400 text-[11px]">Membedakan komponen normal dan rusak via visual dan pengetesan multimeter.</p>
               </div>
             </div>
 
@@ -143,8 +143,8 @@ export const IntroGuideModal: React.FC<IntroGuideModalProps> = ({
                 Tab 4
               </span>
               <div>
-                <strong className="text-white">Tes & Pengujian Ampli:</strong>
-                <p className="text-slate-400 text-[11px]">SOP wajib: Tes bohlam seri 100W, ukur tegangan DC PSU, setel DCO &lt; 15mV, kalibrasi bias TR final.</p>
+                <strong className="text-white">Pengetesan Amplifier:</strong>
+                <p className="text-slate-400 text-[11px]">Cara pengetesan amplifier pada ruang service dan pengetesan audio.</p>
               </div>
             </div>
 
@@ -153,8 +153,8 @@ export const IntroGuideModal: React.FC<IntroGuideModalProps> = ({
                 Tab 5
               </span>
               <div>
-                <strong className="text-white">Tes Speaker & Audio:</strong>
-                <p className="text-slate-400 text-[11px]">Uji impedansi voice coil, polaritas baterai 1.5V, generator sinyal audio (100Hz, 1kHz) dan sound check.</p>
+                <strong className="text-white">Tes Speaker:</strong>
+                <p className="text-slate-400 text-[11px]">Pengetesan perangkat speaker TOA dengan audio dan cara membedakan tipe speaker.</p>
               </div>
             </div>
           </div>
@@ -178,7 +178,7 @@ export const IntroGuideModal: React.FC<IntroGuideModalProps> = ({
                 1. Komponen Pasif & Aktif
               </span>
               <p className="text-[11px] text-slate-400">
-                Pustaka mendalam resistor, elco, dioda, transistor BJT, MOSFET, dan IC driver audio.
+                Pustaka komponen Resistor, Elco, Dioda, Transistor, MOSFET, dan IC driver audio.
               </p>
             </div>
 
@@ -198,7 +198,7 @@ export const IntroGuideModal: React.FC<IntroGuideModalProps> = ({
                 3. Analisis Kerusakan
               </span>
               <p className="text-[11px] text-slate-400">
-                Langkah pengecekan 3 tahap (Visual, Cold Check, Hot Check) dan pencarian otomatis riwayat unit.
+                Pengecekan kerusakan dengan menyesuaikan data kerusakan pada ampli dan database.
               </p>
             </div>
 
@@ -217,9 +217,9 @@ export const IntroGuideModal: React.FC<IntroGuideModalProps> = ({
     },
     {
       id: 'bubble',
-      title: '3. Bubble Catat Nomor Service (Pojok Kiri Bawah)',
+      title: '4. Bubble Catat Nomor Service (Pojok Kiri Bawah)',
       icon: <ClipboardList className="w-5 h-5 text-cyan-400" />,
-      badge: 'Fitur Baru',
+      badge: 'Catatan Nomor Service',
       content: (
         <div className="space-y-3 text-xs">
           <div className="p-3.5 rounded-xl bg-cyan-950/40 border border-cyan-800/60 space-y-1.5">
@@ -236,14 +236,11 @@ export const IntroGuideModal: React.FC<IntroGuideModalProps> = ({
             <span className="font-semibold text-white">4 Data Wajib yang Tercatat:</span>
             <ul className="space-y-1 text-slate-300 text-[11px] list-disc list-inside">
               <li><strong className="text-white">Nama yang Mengerjakan:</strong> Otomatis terisi nama akun teknisi yang sedang login.</li>
-              <li><strong className="text-cyan-400 font-mono">Nomor Service:</strong> Nomor nota servis atau kode unit kerja (misal: SRV-2025-001).</li>
+              <li><strong className="text-cyan-400 font-mono">Nomor Service:</strong> Nomor nota servis (misal: GTC-2600001).</li>
               <li><strong className="text-white">Analisa Kerusakan:</strong> Kerusakan yang ditemukan pada sirkuit audio.</li>
               <li><strong className="text-emerald-400">Komponen yang Diganti:</strong> Daftar komponen pengganti (transistor, IC, zener, dll).</li>
             </ul>
           </div>
-          <p className="text-slate-400 text-[11px]">
-            Data ini langsung tersimpan ke database lokal dan dapat disalin ke Google Spreadsheet lewat tab <strong>"5. Nomor Service"</strong>.
-          </p>
         </div>
       )
     },
