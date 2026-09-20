@@ -508,6 +508,7 @@ export default function App() {
                 <KomponenRusakBagusTab 
                   currentUser={currentUser}
                   onOpenSpreadsheetManager={isFulltime ? () => setIsSpreadsheetModalOpen(true) : undefined}
+                  onNavigateToKatalog={() => setActiveView('komponen-pasif')}
                 />
               )}
               {activeMainTab === 'tes-ampli' && (
