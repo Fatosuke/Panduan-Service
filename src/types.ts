@@ -52,7 +52,7 @@ export interface ToolItem {
 export interface AmpliItem {
   id: string;
   name: string;
-  classType: 'Kelas AB' | 'Kelas D' | 'Kelas H' | 'Built-up / Komersial' | 'Kelas OCL / BTL';
+  classType: 'Amplifier Low Impedance' | 'Amplifier High Impedance' | 'Speaker Low Impedance' | 'Speaker High Impedance' | 'Microphone Kabel' | 'Microphone Wireless' | 'Lain-lain';
   powerRange: string;
   voltageSupply: string;
   description: string;

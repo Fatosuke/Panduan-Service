@@ -39,7 +39,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
   // Form Fields
   const [formData, setFormData] = useState({
     name: '',
-    classType: 'Kelas AB' as AmpliItem['classType'],
+    classType: 'Amplifier Low Impedance' as AmpliItem['classType'],
     powerRange: '',
     voltageSupply: '',
     description: '',
@@ -69,7 +69,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const classes = ['Semua', 'Kelas AB', 'Kelas D', 'Kelas H', 'Built-up / Komersial', 'Kelas OCL / BTL'];
+  const classes = ['Semua', 'Amplifier Low Impedance', 'Amplifier High Impedance', 'Speaker Low Impedance', 'Speaker High Impedance', 'Microphone Kabel', 'Microphone Wireless', 'Lain-lain'];
 
   const filteredAmpli = ampliList.filter(amp => {
     const matchClass = selectedClass === 'Semua' || amp.classType === selectedClass;
@@ -84,7 +84,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
     setEditingItem(null);
     setFormData({
       name: '',
-      classType: 'Kelas AB',
+      classType: 'Amplifier Low Impedance',
       powerRange: '150W - 800W RMS per kanal',
       voltageSupply: '+/- 32V s.d +/- 65V DC Simetris (CT)',
       description: '',
@@ -121,7 +121,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
       alert('Hanya pembina/master engineer yang memiliki izin menghapus data.');
       return;
     }
-    if (window.confirm(`Yakin ingin menghapus data tipe ampli "${name}"?`)) {
+    if (window.confirm(`Yakin ingin menghapus data produk "${name}"?`)) {
       SpreadsheetService.deleteAmpliItem(id);
       refreshData();
       showToast(`Data "${name}" berhasil dihapus.`);
@@ -133,17 +133,17 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
       alert('Hanya pembina/master engineer yang memiliki izin mereset data.');
       return;
     }
-    if (window.confirm('Apakah Anda ingin mengembalikan daftar tipe ampli ke data standar bawaan? Perubahan manual akan di-reset.')) {
+    if (window.confirm('Apakah Anda ingin mengembalikan daftar produk ke data standar bawaan? Perubahan manual akan di-reset.')) {
       SpreadsheetService.resetAmpliList();
       refreshData();
-      showToast('Daftar tipe ampli berhasil di-reset ke data bawaan.');
+      showToast('Daftar produk berhasil di-reset ke data bawaan.');
     }
   };
 
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      alert('Nama tipe ampli wajib diisi!');
+      alert('Nama produk wajib diisi!');
       return;
     }
 
@@ -174,7 +174,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
         mediaType: formData.mediaType
       };
       SpreadsheetService.updateAmpliItem(updated);
-      showToast(`Data tipe ampli "${updated.name}" berhasil diperbarui!`);
+      showToast(`Data produk "${updated.name}" berhasil diperbarui!`);
     } else {
       // Add
       const created = SpreadsheetService.addAmpliItem({
@@ -190,7 +190,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
         mediaUrl: formData.mediaUrl.trim() || undefined,
         mediaType: formData.mediaType
       });
-      showToast(`Tipe ampli baru "${created.name}" berhasil ditambahkan!`);
+      showToast(`Produk baru "${created.name}" berhasil ditambahkan!`);
     }
 
     refreshData();
@@ -219,7 +219,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
                 Akses Master Engineer (Fulltime):
               </strong>
               <p className="text-slate-300 text-xs leading-relaxed">
-                Anda dapat menambah, mengedit, atau menghapus data ampli langsung dari web ini atau melalui Google Spreadsheet yang telah tersinkron.
+                Anda dapat menambah, mengedit, atau menghapus data produk TOA langsung dari web ini atau melalui Google Spreadsheet yang telah tersinkron.
               </p>
             </div>
           </div>
@@ -231,7 +231,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
               className="py-2 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-900/30 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Tambah Tipe Ampli</span>
+              <span>+ Tambah Produk</span>
             </button>
             {onOpenSpreadsheetManager && (
               <button
@@ -261,10 +261,10 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Radio className="w-6 h-6 text-indigo-400" />
-            Nama-Nama dan Tipe Power Amplifier Audio
+            Nama-Nama dan Tipe Produk TOA
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            Mempelajari topologi penguat Kelas AB, D, H, serta unit built-up komersial lapangan dan titik rawan kerusakannya ({ampliList.length} tipe terdaftar)
+            Amplifier, speaker, microphone, dan perangkat TOA lainnya beserta titik rawan kerusakannya ({ampliList.length} produk terdaftar)
           </p>
         </div>
 
@@ -286,39 +286,6 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
         </div>
       </div>
 
-      {/* Class Comparison Summary Pills */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700/60">
-          <div className="flex items-center gap-2 font-bold text-white text-sm mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
-            Kelas AB (Linear)
-          </div>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Kualitas suara sangat jernih, distorsi harmonik rendah, namun efisiensi sekitar 50-65% sehingga membutuhkan pendingin heatsink besar.
-          </p>
-        </div>
-
-        <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700/60">
-          <div className="flex items-center gap-2 font-bold text-white text-sm mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-            Kelas D (Switching PWM)
-          </div>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Efisiensi tinggi di atas 90%, minim panas, bobot ringan, sangat cocok untuk subwoofer bertenaga ribuan watt RMS.
-          </p>
-        </div>
-
-        <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700/60">
-          <div className="flex items-center gap-2 font-bold text-white text-sm mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-            Kelas H (Multi-Rail Stepper)
-          </div>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Arsitektur Kelas AB dengan voltase bertingkat (Low &amp; High Rail) via saklar mosfet. Menjadi standar power balap konser lapangan.
-          </p>
-        </div>
-      </div>
-
       {/* Search Input */}
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -328,7 +295,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Cari tipe ampli: SOCL, Kelas D, Kelas H, Yamaha P7000S, Behringer, transistor..."
+          placeholder="Cari produk TOA: amplifier, speaker, microphone, terminal box, mixer..."
           className="w-full pl-10 pr-4 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
         />
       </div>
@@ -337,9 +304,9 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
       {filteredAmpli.length === 0 && (
         <div className="p-12 text-center bg-slate-800/40 rounded-2xl border border-slate-700/60">
           <Radio className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-slate-200">Tidak ada tipe ampli yang cocok</h3>
+          <h3 className="text-base font-bold text-slate-200">Tidak ada produk yang cocok</h3>
           <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-            Coba ubah kata kunci pencarian atau klik tombol Tambah Tipe Ampli di atas.
+            Coba ubah kata kunci pencarian atau klik tombol Tambah Produk di atas.
           </p>
           <button
             type="button"
@@ -347,7 +314,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
             className="mt-4 py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Tambah Tipe Ampli Baru</span>
+            <span>Tambah Produk Baru</span>
           </button>
         </div>
       )}
@@ -364,9 +331,12 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
                 <div className="flex-1 pr-2">
                   <div className="flex items-center gap-2 mb-2">
                     <span className={`inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-md uppercase tracking-wider ${
-                      amp.classType === 'Kelas AB' ? 'bg-blue-950 text-blue-400 border border-blue-800' :
-                      amp.classType === 'Kelas D' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
-                      amp.classType === 'Kelas H' ? 'bg-amber-950 text-amber-400 border border-amber-800' :
+                      amp.classType === 'Amplifier Low Impedance' ? 'bg-blue-950 text-blue-400 border border-blue-800' :
+                      amp.classType === 'Amplifier High Impedance' ? 'bg-indigo-950 text-indigo-400 border border-indigo-800' :
+                      amp.classType === 'Speaker Low Impedance' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
+                      amp.classType === 'Speaker High Impedance' ? 'bg-teal-950 text-teal-400 border border-teal-800' :
+                      amp.classType === 'Microphone Kabel' ? 'bg-amber-950 text-amber-400 border border-amber-800' :
+                      amp.classType === 'Microphone Wireless' ? 'bg-pink-950 text-pink-400 border border-pink-800' :
                       'bg-purple-950 text-purple-400 border border-purple-800'
                     }`}>
                       {amp.classType}
@@ -385,7 +355,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
 
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="text-right mr-1">
-                    <span className="text-[11px] text-slate-400 block">Daya RMS:</span>
+                    <span className="text-[11px] text-slate-400 block">Spesifikasi:</span>
                     <span className="text-xs font-mono font-bold text-indigo-300">
                       {amp.powerRange}
                     </span>
@@ -398,7 +368,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
                         type="button"
                         onClick={() => handleOpenEditModal(amp)}
                         className="p-1.5 rounded-md hover:bg-indigo-600/30 text-slate-400 hover:text-indigo-300 transition-colors cursor-pointer"
-                        title="Edit spesifikasi tipe ampli ini"
+                        title="Edit spesifikasi produk ini"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
@@ -406,7 +376,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
                         type="button"
                         onClick={() => handleDeleteItem(amp.id, amp.name)}
                         className="p-1.5 rounded-md hover:bg-rose-600/30 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer"
-                        title="Hapus tipe ampli ini"
+                        title="Hapus produk ini"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -418,12 +388,12 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
               {/* Voltage and Transistors */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4 text-xs">
                 <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700/60">
-                  <span className="text-slate-400 block font-medium mb-0.5">Tegangan Catu Daya (PSU):</span>
+                  <span className="text-slate-400 block font-medium mb-0.5">Spesifikasi Teknis:</span>
                   <span className="text-slate-200 font-mono text-[11px]">{amp.voltageSupply}</span>
                 </div>
                 {amp.typicalTransistors && (
                   <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700/60">
-                    <span className="text-slate-400 block font-medium mb-0.5">Semikonduktor Utama:</span>
+                    <span className="text-slate-400 block font-medium mb-0.5">Part Number / Komponen Utama:</span>
                     <span className="text-slate-200 font-mono text-[11px]">{amp.typicalTransistors}</span>
                   </div>
                 )}
@@ -491,10 +461,10 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-white">
-                    {editingItem ? 'Edit Data Tipe Ampli' : 'Tambah Tipe Power Ampli Baru'}
+                    {editingItem ? 'Edit Data Produk TOA' : 'Tambah Produk TOA Baru'}
                   </h3>
                   <p className="text-xs text-slate-400">
-                    {editingItem ? `Mengubah data untuk: ${editingItem.name}` : 'Masukkan spesifikasi topologi amplifier audio baru'}
+                    {editingItem ? `Mengubah data untuk: ${editingItem.name}` : 'Masukkan spesifikasi produk TOA baru'}
                   </p>
                 </div>
               </div>
@@ -512,38 +482,40 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Nama &amp; Tipe Ampli *:
+                    Nama &amp; Tipe Produk *:
                   </label>
                   <input
                     type="text"
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Contoh: Driver Safari 400 Watt / Apex B500"
+                    placeholder="Contoh: Driver Safari 400 Watt / TOA ZH-2120 / TOA WM-5325"
                     className="w-full py-2 px-3 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Topologi / Kelas Ampli *:
+                    Kategori Produk TOA *:
                   </label>
                   <select
                     value={formData.classType}
                     onChange={(e) => setFormData({ ...formData, classType: e.target.value as any })}
                     className="w-full py-2 px-3 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="Kelas AB">Kelas AB</option>
-                    <option value="Kelas D">Kelas D</option>
-                    <option value="Kelas H">Kelas H</option>
-                    <option value="Built-up / Komersial">Built-up / Komersial</option>
-                    <option value="Kelas OCL / BTL">Kelas OCL / BTL</option>
+                    <option value="Amplifier Low Impedance">Amplifier Low Impedance</option>
+                    <option value="Amplifier High Impedance">Amplifier High Impedance</option>
+                    <option value="Speaker Low Impedance">Speaker Low Impedance</option>
+                    <option value="Speaker High Impedance">Speaker High Impedance</option>
+                    <option value="Microphone Kabel">Microphone Kabel</option>
+                    <option value="Microphone Wireless">Microphone Wireless</option>
+                    <option value="Lain-lain">Lain-lain (Terminal Box, MP3 Player, Digital Mixer)</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Rentang Daya (RMS):
+                    Spesifikasi Daya / Impedansi:
                   </label>
                   <input
                     type="text"
@@ -556,7 +528,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Tegangan Catu Daya (PSU):
+                    Spesifikasi Teknis Tambahan:
                   </label>
                   <input
                     type="text"
@@ -570,13 +542,13 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Semikonduktor / Komponen Utama:
+                  Part Number / Komponen Utama:
                 </label>
                 <input
                   type="text"
                   value={formData.typicalTransistors}
                   onChange={(e) => setFormData({ ...formData, typicalTransistors: e.target.value })}
-                  placeholder="Contoh: Final: 2SC5200/2SA1943. Driver: TIP41/42C atau Mosfet IRFB4227"
+                  placeholder="Contoh: TOA ZH-2120, atau Final: 2SC5200/2SA1943"
                   className="w-full py-2 px-3 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500"
                 />
               </div>
@@ -656,7 +628,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
                   className="py-2 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-900/30 transition-all cursor-pointer"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>{editingItem ? 'Simpan Perubahan' : 'Tambah Tipe Ampli'}</span>
+                  <span>{editingItem ? 'Simpan Perubahan' : 'Tambah Produk'}</span>
                 </button>
               </div>
             </form>

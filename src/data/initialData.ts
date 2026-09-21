@@ -225,7 +225,7 @@ export const INITIAL_AMPLIS: AmpliItem[] = [
   {
     id: 'amp-1',
     name: 'Driver SOCL 504 / 506 (Super OCL 500 Watt)',
-    classType: 'Kelas AB',
+    classType: 'Amplifier Low Impedance',
     powerRange: '150W - 600W RMS per kanal',
     voltageSupply: '+/- 32V s.d +/- 65V DC Simetris (CT)',
     description: 'Salah satu topologi amplifier Kelas AB paling populer di Indonesia untuk keperluan sound system lapangan skala menengah dan rumahan. Dikenal tahan banting dan mudah dimodifikasi.',
@@ -246,7 +246,7 @@ export const INITIAL_AMPLIS: AmpliItem[] = [
   {
     id: 'amp-2',
     name: 'Power Amplifier Kelas D (IRS2092 Full-Bridge & Half-Bridge)',
-    classType: 'Kelas D',
+    classType: 'Amplifier Low Impedance',
     powerRange: '500W - 3000W RMS (D900, D2K, D3K)',
     voltageSupply: '+/- 45V s.d +/- 90V DC Simetris (biasanya dipasangkan dengan SMPS)',
     description: 'Amplifier digital dengan efisiensi konversi daya sangat tinggi (>90%), menghasilkan panas yang minim dan bobot jauh lebih ringan dibanding trafo konvensional.',
@@ -267,7 +267,7 @@ export const INITIAL_AMPLIS: AmpliItem[] = [
   {
     id: 'amp-3',
     name: 'Power Amplifier Kelas H (2-Step / 3-Step Rail Voltage)',
-    classType: 'Kelas H',
+    classType: 'Amplifier Low Impedance',
     powerRange: '1200W - 4000W RMS (Standar Sound Balap & Panggung Besar)',
     voltageSupply: 'Multi-Rail: Low Volt (+/- 55V) dan High Volt (+/- 110V) DC Simetris',
     description: 'Topologi efisiensi tinggi berbasis Kelas AB yang dilengkapi sistem saklar tegangan bertingkat (Stepper / Mosfet Switched Rail). Saat musik pelan beroperasi di Low Rail, dan melompat ke High Rail saat hentakan drum/bass.',
@@ -287,7 +287,7 @@ export const INITIAL_AMPLIS: AmpliItem[] = [
   {
     id: 'amp-4',
     name: 'Yamaha P-Series (P5000S / P7000S EEEngine)',
-    classType: 'Built-up / Komersial',
+    classType: 'Amplifier Low Impedance',
     powerRange: '700W - 1400W RMS per kanal @ 4 Ohm',
     voltageSupply: 'Switching / High-Efficiency EEEngine Dual Track',
     description: 'Power amplifier profesional rancangan Yamaha dengan teknologi hemat energi EEEngine (Energy Efficient Engine) yang terkenal dengan kejernihan suara dan kehandalan proteksi sirkuitnya.',
@@ -307,7 +307,7 @@ export const INITIAL_AMPLIS: AmpliItem[] = [
   {
     id: 'amp-5',
     name: 'Behringer Europower EP2500 / EP4000',
-    classType: 'Built-up / Komersial',
+    classType: 'Amplifier Low Impedance',
     powerRange: '1400W @ 4 Ohm, 2000W @ 2 Ohm per kanal',
     voltageSupply: '+/- 55V (Low) & +/- 110V (High) Rail Transformer Toroid Raksasa',
     description: 'Workhorse amplifier dual channel Kelas H yang menggunakan replika arsitektur QSC RMX Series dengan trafo donat (toroidal) berdaya sangat masif dan kipas turbin pendingin belakang.',

@@ -65,7 +65,7 @@ export const AlatTab: React.FC<AlatTabProps> = ({ currentUser, onOpenSpreadsheet
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const categories = ['Semua', 'Pengukuran', 'Keamanan', 'Solder & Pasang', 'Utama'];
+
 
   const filteredTools = toolsList.filter(tool => {
     const matchesCategory = selectedCategory === 'Semua' || tool.category === selectedCategory;
@@ -233,38 +233,18 @@ export const AlatTab: React.FC<AlatTabProps> = ({ currentUser, onOpenSpreadsheet
         )}
       </div>
 
-      {/* Filter and Search */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center">
-        {/* Categories */}
-        <div className="flex flex-wrap gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-700/80">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`py-1.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                selectedCategory === cat
-                  ? 'bg-amber-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+      {/* Search */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+          <Search className="w-4 h-4" />
         </div>
-
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-            <Search className="w-4 h-4" />
-          </div>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari alat, multimeter, solder, osiloskop, spesifikasi..."
-            className="w-full pl-10 pr-4 py-2 bg-slate-800/90 border border-slate-700 rounded-xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-amber-500"
-          />
-        </div>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Cari alat, multimeter, solder, osiloskop, spesifikasi..."
+          className="w-full pl-10 pr-4 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-amber-500"
+        />
       </div>
 
       {/* Empty State */}
