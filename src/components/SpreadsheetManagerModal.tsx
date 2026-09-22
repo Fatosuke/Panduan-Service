@@ -35,7 +35,8 @@ import {
   Wrench,
   Cpu,
   Activity,
-  Volume2
+  Volume2,
+  Pencil
 } from 'lucide-react';
 import { SpreadsheetService } from '../services/spreadsheetService';
 import { 
@@ -131,6 +132,12 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
   const [newSerial, setNewSerial] = useState('');
   const [newDamagedComp, setNewDamagedComp] = useState('');
   const [newSolution, setNewSolution] = useState('');
+  const [newRootCause, setNewRootCause] = useState('');
+  const [newRepairStepsText, setNewRepairStepsText] = useState('');
+  const [newRecommendedPartsText, setNewRecommendedPartsText] = useState('');
+  const [newDifficulty, setNewDifficulty] = useState<AnalisisUnitRecord['difficulty']>('Sedang');
+  const [newEstimatedTime, setNewEstimatedTime] = useState('');
+  const [editingDiagnosisId, setEditingDiagnosisId] = useState<string | null>(null);
   const [pasteDiagnosisText, setPasteDiagnosisText] = useState('');
   const [showPasteDiagnosis, setShowPasteDiagnosis] = useState(false);
 
@@ -548,26 +555,34 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
     }
     if (!newUnitName.trim() || !newDamagedComp.trim()) return;
 
-    const newRecord: AnalisisUnitRecord = {
-      id: `ana-${Date.now()}`,
+    const repairSteps = newRepairStepsText.split('\n').map(s => s.trim()).filter(Boolean);
+    const recommendedParts = newRecommendedPartsText.split('\n').map(s => s.trim()).filter(Boolean);
+
+    const recordData = {
       unitName: newUnitName.trim(),
       serialNumber: newSerial.trim() || 'SN-GENERIC',
       damagedComponent: newDamagedComp.trim(),
       diagnosisResult: newSolution || 'Kerusakan sirkuit teridentifikasi',
-      rootCause: 'Beban lebih atau usia pakai',
-      repairSteps: ['Periksa komponen terkait', 'Ganti komponen rusak dengan part original', 'Uji dengan Bohlam Seri 100W'],
-      recommendedParts: [newDamagedComp.trim()],
-      difficulty: 'Sedang',
-      estimatedTime: '1 Jam'
+      rootCause: newRootCause.trim() || 'Beban lebih atau usia pakai',
+      repairSteps: repairSteps.length > 0 ? repairSteps : ['Periksa komponen terkait', 'Ganti komponen rusak dengan part original', 'Uji dengan Bohlam Seri 100W'],
+      recommendedParts: recommendedParts.length > 0 ? recommendedParts : [newDamagedComp.trim()],
+      difficulty: newDifficulty,
+      estimatedTime: newEstimatedTime.trim() || '1 Jam'
     };
 
-    const updated = [newRecord, ...diagnosisList];
+    let updated: AnalisisUnitRecord[];
+    let newRecord: AnalisisUnitRecord;
+    if (editingDiagnosisId) {
+      newRecord = { id: editingDiagnosisId, ...recordData };
+      updated = diagnosisList.map(d => d.id === editingDiagnosisId ? newRecord : d);
+    } else {
+      newRecord = { id: `ana-${Date.now()}`, ...recordData };
+      updated = [newRecord, ...diagnosisList];
+    }
+
     SpreadsheetService.saveAnalysisRecords(updated);
     setDiagnosisList(updated);
-    setNewUnitName('');
-    setNewSerial('');
-    setNewDamagedComp('');
-    setNewSolution('');
+    resetDiagnosisForm();
     onDataUpdated();
 
     // Auto-sync real-time ke Google Spreadsheet
@@ -597,11 +612,42 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
     }
   };
 
+  const resetDiagnosisForm = () => {
+    setEditingDiagnosisId(null);
+    setNewUnitName('');
+    setNewSerial('');
+    setNewDamagedComp('');
+    setNewSolution('');
+    setNewRootCause('');
+    setNewRepairStepsText('');
+    setNewRecommendedPartsText('');
+    setNewDifficulty('Sedang');
+    setNewEstimatedTime('');
+  };
+
+  const handleEditDiagnosis = (rec: AnalisisUnitRecord) => {
+    if (!canEdit) {
+      alert(DENIED_ALERT);
+      return;
+    }
+    setEditingDiagnosisId(rec.id);
+    setNewUnitName(rec.unitName);
+    setNewSerial(rec.serialNumber === 'SN-GENERIC' ? '' : rec.serialNumber);
+    setNewDamagedComp(rec.damagedComponent);
+    setNewSolution(rec.diagnosisResult);
+    setNewRootCause(rec.rootCause);
+    setNewRepairStepsText((rec.repairSteps || []).join('\n'));
+    setNewRecommendedPartsText((rec.recommendedParts || []).join('\n'));
+    setNewDifficulty(rec.difficulty);
+    setNewEstimatedTime(rec.estimatedTime);
+  };
+
   const handleDeleteDiagnosis = async (id: string) => {
     if (!canEdit) {
       alert(DENIED_ALERT);
       return;
     }
+    if (editingDiagnosisId === id) resetDiagnosisForm();
     const updated = diagnosisList.filter(d => d.id !== id);
     SpreadsheetService.saveAnalysisRecords(updated);
     setDiagnosisList(updated);
@@ -2903,7 +2949,20 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
               {/* Add Diagnosis Record form - Only for authorized editors */}
               {canEdit ? (
                 <form onSubmit={handleAddDiagnosis} className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                  <h4 className="font-semibold text-white text-xs">Tambah Catatan Kerusakan &amp; Solusi Baru:</h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-white text-xs">
+                      {editingDiagnosisId ? 'Edit Catatan Kerusakan & Solusi:' : 'Tambah Catatan Kerusakan & Solusi Baru:'}
+                    </h4>
+                    {editingDiagnosisId && (
+                      <button
+                        type="button"
+                        onClick={resetDiagnosisForm}
+                        className="text-[11px] text-slate-400 hover:text-white underline cursor-pointer"
+                      >
+                        Batal edit
+                      </button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-300 mb-1">Nama Unit / Model:</label>
@@ -2951,12 +3010,76 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Penyebab Utama (Root Cause):</label>
+                    <input
+                      type="text"
+                      value={newRootCause}
+                      onChange={(e) => setNewRootCause(e.target.value)}
+                      placeholder="Contoh: Beban lebih atau usia pakai komponen"
+                      className="w-full py-2 px-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Langkah-Langkah Solusi Servis (satu langkah per baris):
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={newRepairStepsText}
+                      onChange={(e) => setNewRepairStepsText(e.target.value)}
+                      placeholder={'Periksa komponen terkait\nGanti komponen rusak dengan part original\nUji dengan Bohlam Seri 100W'}
+                      className="w-full py-2 px-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-indigo-500 font-mono"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">Kosongkan untuk pakai 3 langkah standar bawaan.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Komponen / Part Pengganti yang Disarankan (satu per baris):
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={newRecommendedPartsText}
+                      onChange={(e) => setNewRecommendedPartsText(e.target.value)}
+                      placeholder="Contoh: Transistor 2SC5200\nTransistor 2SA1943"
+                      className="w-full py-2 px-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-indigo-500 font-mono"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Tingkat Kesulitan:</label>
+                      <select
+                        value={newDifficulty}
+                        onChange={(e) => setNewDifficulty(e.target.value as AnalisisUnitRecord['difficulty'])}
+                        className="w-full py-2 px-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="Mudah">Mudah</option>
+                        <option value="Sedang">Sedang</option>
+                        <option value="Sulit">Sulit</option>
+                        <option value="Kritis">Kritis</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Estimasi Waktu Pengerjaan:</label>
+                      <input
+                        type="text"
+                        value={newEstimatedTime}
+                        onChange={(e) => setNewEstimatedTime(e.target.value)}
+                        placeholder="Contoh: 1 Jam, 30 Menit, 2-3 Jam"
+                        className="w-full py-2 px-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+
                   <button
                     type="submit"
                     className="py-2 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Tambah Catatan Unit ke Spreadsheet
+                    {editingDiagnosisId ? 'Simpan Perubahan' : 'Tambah Catatan Unit ke Spreadsheet'}
                   </button>
                 </form>
               ) : (
@@ -2981,13 +3104,22 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                       <p className="text-slate-300"><strong>Hasil & Solusi:</strong> {rec.diagnosisResult}</p>
                     </div>
                     {canEdit ? (
-                      <button
-                        onClick={() => handleDeleteDiagnosis(rec.id)}
-                        className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded transition-colors shrink-0 cursor-pointer"
-                        title="Hapus Catatan"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleEditDiagnosis(rec)}
+                          className="p-1.5 text-slate-500 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors cursor-pointer"
+                          title="Edit Catatan"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDiagnosis(rec.id)}
+                          className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded transition-colors cursor-pointer"
+                          title="Hapus Catatan"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     ) : (
                       <div className="p-1.5 text-slate-600 shrink-0" title="Terkunci">
                         <Lock className="w-3.5 h-3.5" />
