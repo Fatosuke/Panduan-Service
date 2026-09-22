@@ -22,6 +22,15 @@ interface HelpViewProps {
   onBackToMain?: () => void;
 }
 
+// Converts a displayed phone number like "+62 859-6632-8202" or
+// "0859-6632-8202" into the digits-only format wa.me needs (628596632...).
+function toWaNumber(phone: string): string {
+  const digits = (phone || '').replace(/\D/g, '');
+  if (digits.startsWith('0')) return '62' + digits.slice(1);
+  if (digits.startsWith('62')) return digits;
+  return '62' + digits;
+}
+
 export const HelpView: React.FC<HelpViewProps> = ({ currentUser, onBackToMain }) => {
   const [contacts, setContacts] = useState<StaffContact[]>(SpreadsheetService.getStaffContacts());
   const [tickets, setTickets] = useState<KonsultasiTicket[]>(SpreadsheetService.getKonsultasiTickets());
@@ -218,7 +227,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ currentUser, onBackToMain })
               {/* Direct Contact Actions */}
               <div className="space-y-2 pt-3 border-t border-slate-700/60">
                 <a
-                  href={`https://wa.me/6281234567890?text=${encodeURIComponent(
+                  href={`https://wa.me/${toWaNumber(item.phone)}?text=${encodeURIComponent(
                     `Halo Pembina ${item.name}, saya ingin konsultasi terkait servis unit amplifier.`
                   )}`}
                   target="_blank"
@@ -285,7 +294,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ currentUser, onBackToMain })
               {/* Contact Admin */}
               <div className="space-y-2 pt-3 border-t border-slate-700/60">
                 <a
-                  href={`https://wa.me/6285711223344?text=${encodeURIComponent(
+                  href={`https://wa.me/${toWaNumber(item.phone)}?text=${encodeURIComponent(
                     `Halo Admin ${item.name}, saya ingin mengajukan penambahan nama / perpanjangan akses ke spreadsheet aplikasi panduan service.`
                   )}`}
                   target="_blank"

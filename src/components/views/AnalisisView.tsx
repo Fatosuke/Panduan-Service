@@ -28,6 +28,15 @@ interface AnalisisViewProps {
   onNavigateToHelp?: () => void;
 }
 
+// Converts a displayed phone number like "+62 859-6632-8202" or
+// "0859-6632-8202" into the digits-only format wa.me needs (628596632...).
+function toWaNumber(phone: string): string {
+  const digits = (phone || '').replace(/\D/g, '');
+  if (digits.startsWith('0')) return '62' + digits.slice(1);
+  if (digits.startsWith('62')) return digits;
+  return '62' + digits;
+}
+
 export const AnalisisView: React.FC<AnalisisViewProps> = ({ 
   currentUser,
   onBackToMain,
@@ -54,8 +63,8 @@ export const AnalisisView: React.FC<AnalisisViewProps> = ({
   } | null>(null);
 
   // Consultation state for when "tanyakan pada pembina" triggers
-  const [selectedPembina, setSelectedPembina] = useState<StaffContact>(
-    SpreadsheetService.getStaffContacts().filter(s => s.role === 'Pembina')[0]
+  const [selectedPembina, setSelectedPembina] = useState<StaffContact | null>(
+    SpreadsheetService.getStaffContacts().filter(s => s.role === 'Pembina')[0] || null
   );
   const [consultationSent, setConsultationSent] = useState(false);
 
@@ -121,6 +130,19 @@ export const AnalisisView: React.FC<AnalisisViewProps> = ({
     } else if (cfg.sheetUrl) {
       setSpreadsheetInput(cfg.sheetUrl);
     }
+  }, []);
+
+  // Keep the selected Pembina in sync with live Kontak_Staff data - self
+  // heals if the list was empty on first load and a Pembina gets added
+  // later, instead of staying stuck on null.
+  useEffect(() => {
+    const unsub = SpreadsheetService.subscribeToDataChanges(() => {
+      setSelectedPembina((prev) => {
+        if (prev) return prev;
+        return SpreadsheetService.getStaffContacts().filter(s => s.role === 'Pembina')[0] || null;
+      });
+    });
+    return unsub;
   }, []);
 
   const handleSaveSpreadsheetId = () => {
@@ -212,6 +234,10 @@ export const AnalisisView: React.FC<AnalisisViewProps> = ({
   const pembinaList = SpreadsheetService.getStaffContacts().filter(s => s.role === 'Pembina');
 
   const handleSendToPembina = () => {
+    if (!selectedPembina) {
+      alert('Belum ada kontak Pembina yang terdaftar. Hubungi admin untuk menambahkan kontak Pembina di menu Spreadsheet Sync.');
+      return;
+    }
     SpreadsheetService.addKonsultasiTicket({
       unitName,
       damagedComponent,
@@ -594,7 +620,7 @@ export const AnalisisView: React.FC<AnalisisViewProps> = ({
                       type="button"
                       onClick={() => setSelectedPembina(pem)}
                       className={`p-3 rounded-xl border text-left transition-all ${
-                        selectedPembina.id === pem.id
+                        selectedPembina?.id === pem.id
                           ? 'bg-amber-500/20 border-amber-500 text-white shadow-md'
                           : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
                       }`}
@@ -608,44 +634,52 @@ export const AnalisisView: React.FC<AnalisisViewProps> = ({
                   ))}
                 </div>
 
-                {/* Message preview to pembina */}
-                <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs space-y-1.5 font-mono text-slate-300">
-                  <p><strong className="text-amber-400">Kepada:</strong> {selectedPembina.name} ({selectedPembina.title})</p>
-                  <p><strong className="text-blue-400">Unit:</strong> {unitName}</p>
-                  <p><strong className="text-blue-400">Temuan Kerusakan:</strong> {damagedComponent}</p>
-                  <p><strong className="text-emerald-400">Catatan:</strong> "Mohon arahan dan panduan teknis langkah servis untuk unit ini karena belum ada di spreadsheet."</p>
-                </div>
-
-                {!consultationSent ? (
-                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                    <a
-                      href={`https://wa.me/6281234567890?text=${encodeURIComponent(
-                        `Halo Pembina ${selectedPembina.name}, saya teknisi ingin menanyakan kasus unit yang tidak ada di spreadsheet:\nUnit: ${unitName}\nTemuan Kerusakan: ${damagedComponent}\nMohon panduannya.`
-                      )}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <PhoneCall className="w-4 h-4" />
-                      Hubungi Pembina via WhatsApp
-                    </a>
-
-                    <button
-                      type="button"
-                      onClick={handleSendToPembina}
-                      className="flex-1 py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                    >
-                      <Send className="w-4 h-4" />
-                      Kirim Tiket Konsultasi Internal
-                    </button>
+                {!selectedPembina ? (
+                  <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-400">
+                    Belum ada kontak Pembina terdaftar. Admin Fulltime bisa menambahkannya lewat menu Spreadsheet Sync &gt; tab "Pembina &amp; Admin".
                   </div>
                 ) : (
-                  <div className="p-3 rounded-xl bg-emerald-950/60 border border-emerald-700/70 text-emerald-300 text-xs flex items-center gap-2.5">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <span>
-                      Pertanyaan telah terkirim kepada Pembina <strong>{selectedPembina.name}</strong>. Pembina akan segera merespons via sistem atau chat.
-                    </span>
-                  </div>
+                  <>
+                    {/* Message preview to pembina */}
+                    <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs space-y-1.5 font-mono text-slate-300">
+                      <p><strong className="text-amber-400">Kepada:</strong> {selectedPembina.name} ({selectedPembina.title})</p>
+                      <p><strong className="text-blue-400">Unit:</strong> {unitName}</p>
+                      <p><strong className="text-blue-400">Temuan Kerusakan:</strong> {damagedComponent}</p>
+                      <p><strong className="text-emerald-400">Catatan:</strong> "Mohon arahan dan panduan teknis langkah servis untuk unit ini karena belum ada di spreadsheet."</p>
+                    </div>
+
+                    {!consultationSent ? (
+                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                        <a
+                          href={`https://wa.me/${toWaNumber(selectedPembina.phone)}?text=${encodeURIComponent(
+                            `Halo Pembina ${selectedPembina.name}, saya teknisi ingin menanyakan kasus unit yang tidak ada di spreadsheet:\nUnit: ${unitName}\nTemuan Kerusakan: ${damagedComponent}\nMohon panduannya.`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors"
+                        >
+                          <PhoneCall className="w-4 h-4" />
+                          Hubungi Pembina via WhatsApp
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={handleSendToPembina}
+                          className="flex-1 py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                        >
+                          <Send className="w-4 h-4" />
+                          Kirim Tiket Konsultasi Internal
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="p-3 rounded-xl bg-emerald-950/60 border border-emerald-700/70 text-emerald-300 text-xs flex items-center gap-2.5">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                        <span>
+                          Pertanyaan telah terkirim kepada Pembina <strong>{selectedPembina.name}</strong>. Pembina akan segera merespons via sistem atau chat.
+                        </span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
