@@ -29,10 +29,14 @@ const SCHEMAS = {
   Analisis_Kerusakan: ['id', 'unitName', 'serialNumber', 'damagedComponent', 'diagnosisResult', 'rootCause', 'repairSteps', 'recommendedParts', 'difficulty', 'estimatedTime'],
   Kontak_Staff: ['id', 'name', 'role', 'title', 'phone', 'email', 'status', 'specialty'],
   Katalog_Komponen: ['id', 'name', 'category', 'subType', 'symbol', 'description', 'functionDesc', 'howToTest', 'goodCondition', 'badCondition', 'safetyNote', 'pinoutOrColorCode', 'image'],
-  Tiket_Konsultasi: ['id', 'unitName', 'damagedComponent', 'pembinaTujuan', 'catatan', 'askedBy', 'status', 'jawaban', 'createdAt', 'answeredAt'],
+  // Chat "Tanyakan Pada Pembina": satu baris = satu percakapan.
+  Chat_Threads: ['id', 'askerId', 'askerName', 'pembinaName', 'subject', 'status', 'createdAt'],
+  // Satu baris = satu pesan di dalam sebuah percakapan (threadId).
+  Chat_Pesan: ['id', 'threadId', 'senderId', 'senderName', 'senderRole', 'text', 'createdAt'],
   // Akun_Pengguna menyimpan passwordHash & passwordSalt - dua kolom ini
-  // TIDAK PERNAH dikirim ke client (lihat stripSecrets_).
-  Akun_Pengguna: ['id', 'fullName', 'email', 'gender', 'birthDate', 'accessType', 'accessExpiry', 'registeredAt', 'passwordHash', 'passwordSalt'],
+  // TIDAK PERNAH dikirim ke client (lihat stripSecrets_). askTokens = sisa
+  // jatah bertanya ke Pembina bulan ini (diisi manual oleh admin Fulltime).
+  Akun_Pengguna: ['id', 'fullName', 'email', 'gender', 'birthDate', 'accessType', 'accessExpiry', 'registeredAt', 'passwordHash', 'passwordSalt', 'askTokens'],
   // Sessions bersifat internal, tidak pernah diekspos lewat getAll.
   Sessions: ['token', 'userId', 'createdAt', 'expiresAt'],
 };
@@ -45,21 +49,21 @@ const ARRAY_FIELDS = {
   Analisis_Kerusakan: ['repairSteps', 'recommendedParts'],
 };
 
-// Sheet data yang HANYA boleh ditulis oleh akun fulltime.
+// Sheet data yang HANYA boleh ditulis oleh akun fulltime/editor lewat aksi
+// add/update/delete/replaceAll generik.
 const PROTECTED_SHEETS = [
   'Alat_Kerja', 'Tipe_Ampli', 'Komponen_Rusak_Bagus', 'Pengetesan_Amplifier',
   'Pengetesan_Speaker', 'Nomor_Service', 'Whitelist_Siswa', 'Analisis_Kerusakan',
-  'Kontak_Staff', 'Katalog_Komponen', 'Tiket_Konsultasi',
+  'Kontak_Staff', 'Katalog_Komponen',
 ];
 
-// Any signed-in, approved account (fulltime, editor, or 6months) may CREATE
-// a row in these sheets - not just fulltime/editor. Used for the "Tanyakan
-// Pada Pembina" consultation ticket, so any technician can ask a question
-// even if they can't edit the knowledge base themselves. Answering /
-// editing / deleting a ticket still requires fulltime or editor (see
-// requireEditAccess_ below, used by handleUpdate_/handleDelete_).
-const OPEN_ADD_SHEETS = ['Tiket_Konsultasi'];
+// Chat_Threads & Chat_Pesan TIDAK masuk PROTECTED_SHEETS ataupun
+// OPEN_ADD_SHEETS - keduanya hanya boleh ditulis lewat aksi khusus
+// (startChatThread / sendChatMessage / closeChatThread) supaya identitas
+// pengirim selalu diambil dari sesi login, bukan dari input client.
+const OPEN_ADD_SHEETS = [];
 
+const DEFAULT_ASK_TOKENS = 5;
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000; // 30 hari
 
 // ============================================================================
@@ -103,6 +107,14 @@ function doPost(e) {
         return jsonResponse_(handleListUsers_(body));
       case 'setAccess':
         return jsonResponse_(handleSetAccess_(body));
+      case 'setAskTokens':
+        return jsonResponse_(handleSetAskTokens_(body));
+      case 'startChatThread':
+        return jsonResponse_(handleStartChatThread_(body));
+      case 'sendChatMessage':
+        return jsonResponse_(handleSendChatMessage_(body));
+      case 'closeChatThread':
+        return jsonResponse_(handleCloseChatThread_(body));
       case 'add':
         return jsonResponse_(handleAdd_(body));
       case 'update':
@@ -150,6 +162,7 @@ function handleRegister_(body) {
     registeredAt: new Date().toISOString(),
     passwordHash: hashPassword_(password, salt),
     passwordSalt: salt,
+    askTokens: DEFAULT_ASK_TOKENS,
   };
   appendRow_('Akun_Pengguna', newUser);
 
@@ -216,6 +229,139 @@ function handleSetAccess_(body) {
   sheet.getRange(rowIndex, headers.indexOf('accessType') + 1).setValue(accessType);
   sheet.getRange(rowIndex, headers.indexOf('accessExpiry') + 1).setValue(accessExpiry);
 
+  return { ok: true };
+}
+
+function handleSetAskTokens_(body) {
+  const requester = getUserBySessionToken_(body.token);
+  if (!requester || requester.accessType !== 'fulltime') {
+    return { ok: false, error: 'Hanya akun Fulltime yang bisa mengubah jatah token bertanya.' };
+  }
+  const targetId = body.targetUserId;
+  const askTokens = Number(body.askTokens);
+  if (isNaN(askTokens) || askTokens < 0) {
+    return { ok: false, error: 'Jumlah token tidak valid.' };
+  }
+
+  const sheet = getSheet_('Akun_Pengguna');
+  const rowIndex = findRowIndexById_(sheet, targetId);
+  if (rowIndex === -1) return { ok: false, error: 'Pengguna tidak ditemukan.' };
+
+  const headers = SCHEMAS.Akun_Pengguna;
+  sheet.getRange(rowIndex, headers.indexOf('askTokens') + 1).setValue(askTokens);
+
+  return { ok: true };
+}
+
+// ============================================================================
+// CHAT "TANYAKAN PADA PEMBINA" (token-gated untuk akun non-fulltime)
+// ============================================================================
+
+// Mulai percakapan baru. Akun non-fulltime memakai 1 token, KECUALI
+// usedExemption=true (sudah menyelesaikan tantangan fisik sebagai ganti
+// token yang habis - lihat AskPembinaBubble.tsx di frontend).
+function handleStartChatThread_(body) {
+  const requester = getUserBySessionToken_(body.token);
+  if (!requester) return { ok: false, error: 'Sesi tidak valid. Silakan login ulang.' };
+  if (requester.accessType === 'none') {
+    return { ok: false, error: 'Akun Anda masih menunggu persetujuan admin.' };
+  }
+
+  const pembinaName = (body.pembinaName || '').trim();
+  const subject = (body.subject || '').trim();
+  const firstMessage = (body.firstMessage || '').trim();
+  if (!pembinaName || !firstMessage) {
+    return { ok: false, error: 'Pilih Pembina dan tulis pertanyaan Anda.' };
+  }
+
+  const isFulltime = requester.accessType === 'fulltime';
+  if (!isFulltime) {
+    const currentTokens = Number(requester.askTokens || 0);
+    if (currentTokens <= 0 && !body.usedExemption) {
+      return { ok: false, error: 'no_tokens' };
+    }
+    if (currentTokens > 0 && !body.usedExemption) {
+      const sheet = getSheet_('Akun_Pengguna');
+      const rowIndex = findRowIndexById_(sheet, requester.id);
+      const headers = SCHEMAS.Akun_Pengguna;
+      sheet.getRange(rowIndex, headers.indexOf('askTokens') + 1).setValue(currentTokens - 1);
+    }
+  }
+
+  const threadId = 'thread-' + Utilities.getUuid().slice(0, 8);
+  const now = new Date().toLocaleDateString('id-ID', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+  const thread = {
+    id: threadId,
+    askerId: requester.id,
+    askerName: requester.fullName,
+    pembinaName,
+    subject: subject || firstMessage.slice(0, 60),
+    status: 'active',
+    createdAt: now,
+  };
+  appendRow_('Chat_Threads', thread);
+
+  const message = {
+    id: 'msg-' + Utilities.getUuid().slice(0, 8),
+    threadId,
+    senderId: requester.id,
+    senderName: requester.fullName,
+    senderRole: requester.accessType,
+    text: firstMessage,
+    createdAt: now,
+  };
+  appendRow_('Chat_Pesan', message);
+
+  return { ok: true, thread, message };
+}
+
+// Balas pesan di percakapan yang sudah ada - gratis, tidak makan token,
+// dipakai baik oleh penanya maupun Pembina.
+function handleSendChatMessage_(body) {
+  const requester = getUserBySessionToken_(body.token);
+  if (!requester) return { ok: false, error: 'Sesi tidak valid. Silakan login ulang.' };
+  if (requester.accessType === 'none') {
+    return { ok: false, error: 'Akun Anda masih menunggu persetujuan admin.' };
+  }
+  const threadId = body.threadId;
+  const text = (body.text || '').trim();
+  if (!threadId || !text) return { ok: false, error: 'Pesan tidak boleh kosong.' };
+
+  const message = {
+    id: 'msg-' + Utilities.getUuid().slice(0, 8),
+    threadId,
+    senderId: requester.id,
+    senderName: requester.fullName,
+    senderRole: requester.accessType,
+    text,
+    createdAt: new Date().toLocaleDateString('id-ID', {
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    }),
+  };
+  appendRow_('Chat_Pesan', message);
+  return { ok: true, message };
+}
+
+// Menutup percakapan - boleh dilakukan oleh penanya sendiri atau akun
+// fulltime manapun.
+function handleCloseChatThread_(body) {
+  const requester = getUserBySessionToken_(body.token);
+  if (!requester) return { ok: false, error: 'Sesi tidak valid. Silakan login ulang.' };
+
+  const sheet = getSheet_('Chat_Threads');
+  const rowIndex = findRowIndexById_(sheet, body.threadId);
+  if (rowIndex === -1) return { ok: false, error: 'Percakapan tidak ditemukan.' };
+
+  const headers = SCHEMAS.Chat_Threads;
+  const askerIdCol = headers.indexOf('askerId') + 1;
+  const rowAskerId = sheet.getRange(rowIndex, askerIdCol).getValue();
+  if (rowAskerId !== requester.id && requester.accessType !== 'fulltime') {
+    return { ok: false, error: 'Anda tidak punya izin menutup percakapan ini.' };
+  }
+
+  sheet.getRange(rowIndex, headers.indexOf('status') + 1).setValue('closed');
   return { ok: true };
 }
 
@@ -316,7 +462,7 @@ function idPrefix_(sheetName) {
     Alat_Kerja: 'tool', Tipe_Ampli: 'amp', Komponen_Rusak_Bagus: 'guide',
     Pengetesan_Amplifier: 'step-amp', Pengetesan_Speaker: 'step-spk',
     Nomor_Service: 'srv', Whitelist_Siswa: 'wl', Analisis_Kerusakan: 'diag',
-    Kontak_Staff: 'staff', Katalog_Komponen: 'komp', Tiket_Konsultasi: 'tiket',
+    Kontak_Staff: 'staff', Katalog_Komponen: 'komp', Chat_Threads: 'thread', Chat_Pesan: 'msg',
   };
   return map[sheetName] || 'item';
 }

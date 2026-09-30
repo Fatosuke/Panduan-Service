@@ -27,6 +27,7 @@ import { SidebarDrawer } from './components/SidebarDrawer';
 import { SpreadsheetManagerModal } from './components/SpreadsheetManagerModal';
 import { UserManagementPanel } from './components/UserManagementPanel';
 import { ServiceBubbleModal } from './components/ServiceBubbleModal';
+import { AskPembinaBubble } from './components/AskPembinaBubble';
 import { IntroGuideModal } from './components/IntroGuideModal';
 import {
   validateSession,
@@ -118,6 +119,13 @@ export default function App() {
     if (!isHidden) {
       setIsIntroModalOpen(true);
     }
+  };
+
+  // Re-fetch the account from the backend so values changed elsewhere
+  // (e.g. askTokens edited by an admin, or spent on a new chat) are current.
+  const refreshCurrentUser = async () => {
+    const fresh = await validateSession();
+    if (fresh) setCurrentUser(fresh);
   };
 
   const handleLogout = async () => {
@@ -599,6 +607,13 @@ export default function App() {
       <ServiceBubbleModal 
         currentUser={currentUser}
         onOpenSpreadsheetManager={isFulltime ? () => setIsSpreadsheetModalOpen(true) : undefined}
+      />
+
+      {/* FLOATING BUBBLE CHAT "TANYA PEMBINA" (Pojok Kanan Bawah) */}
+      <AskPembinaBubble
+        currentUser={currentUser}
+        onNavigateToHelp={() => setActiveView('help')}
+        onRefreshUser={refreshCurrentUser}
       />
 
       {/* LEFT TOP DRAWER COMPONENT ("Tab disebelah kiri atas") */}

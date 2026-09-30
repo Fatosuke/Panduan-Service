@@ -489,7 +489,7 @@ export const AmpliTab: React.FC<AmpliTabProps> = ({ currentUser, onOpenSpreadshe
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Contoh: Driver Safari 400 Watt / TOA ZH-2120 / TOA WM-5325"
+                    placeholder="Contoh: ZA-2240"
                     className="w-full py-2 px-3 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500"
                   />
                 </div>

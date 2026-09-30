@@ -45,14 +45,27 @@ export const ServiceBubbleModal: React.FC<ServiceBubbleModalProps> = ({
     }
   }, [currentUser]);
 
-  // Load records
+  // Load records - each account only sees their OWN service history here
+  // (privacy: e.g. Lintang should not see Agas Maulana's entries). Fulltime
+  // admins with the full cross-account picture can still see everyone's
+  // records via Spreadsheet Sync > tab "Nomor Service".
   const refreshLogs = () => {
-    setServiceLogs(SpreadsheetService.getServiceLogs());
+    const all = SpreadsheetService.getServiceLogs();
+    const mine = all.filter(
+      (log) => log.namaYangMengerjakan.trim().toLowerCase() === (currentUser?.fullName || '').trim().toLowerCase()
+    );
+    setServiceLogs(mine);
   };
 
   useEffect(() => {
     refreshLogs();
-  }, [isOpen]);
+  }, [isOpen, currentUser]);
+
+  useEffect(() => {
+    const unsub = SpreadsheetService.subscribeToDataChanges(refreshLogs);
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,7 +238,7 @@ export const ServiceBubbleModal: React.FC<ServiceBubbleModalProps> = ({
                       required
                       value={namaYangMengerjakan}
                       onChange={(e) => setNamaYangMengerjakan(e.target.value)}
-                      placeholder="Contoh: Vicky / Agas Maulana / Tommy Wijaya"
+                      placeholder="Nama teknisi yang mengerjakan"
                       className="w-full py-2 px-3 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -240,7 +253,7 @@ export const ServiceBubbleModal: React.FC<ServiceBubbleModalProps> = ({
                       required
                       value={nomorService}
                       onChange={(e) => setNomorService(e.target.value)}
-                      placeholder="Contoh: SRV-2025-0091 atau No. Nota / Tanda Terima"
+                      placeholder="Contoh: GTC-2600001"
                       className="w-full py-2 px-3 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -255,7 +268,7 @@ export const ServiceBubbleModal: React.FC<ServiceBubbleModalProps> = ({
                       required
                       value={analisaKerusakan}
                       onChange={(e) => setAnalisaKerusakan(e.target.value)}
-                      placeholder="Contoh: Power CA20 mati total, TR final jebol 4 set dan tegangan bias tidak seimbang"
+                      placeholder="Jelaskan kerusakan yang ditemukan pada unit"
                       className="w-full py-2 px-3 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -270,7 +283,7 @@ export const ServiceBubbleModal: React.FC<ServiceBubbleModalProps> = ({
                       required
                       value={komponenDiganti}
                       onChange={(e) => setKomponenDiganti(e.target.value)}
-                      placeholder="Contoh: 2SC5200 (4 pcs), 2SA1943 (4 pcs), Zener 15V (2 pcs), Resistor kapur 0.22Ω 5W"
+                      placeholder="Daftar komponen pengganti dan jumlahnya"
                       className="w-full py-2 px-3 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>

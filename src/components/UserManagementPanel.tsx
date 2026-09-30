@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, ShieldCheck, Clock, Ban, Users, Loader2, PenLine } from 'lucide-react';
 import { User, AccessType } from '../types';
-import { subscribeToUsers, setUserAccessType } from '../services/backendService';
+import { subscribeToUsers, setUserAccessType, setUserAskTokens } from '../services/backendService';
 
 interface UserManagementPanelProps {
   isOpen: boolean;
@@ -31,6 +31,7 @@ export const UserManagementPanel: React.FC<UserManagementPanelProps> = ({
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [tokenDrafts, setTokenDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!isOpen) return;
@@ -55,6 +56,29 @@ export const UserManagementPanel: React.FC<UserManagementPanelProps> = ({
     } catch (e) {
       console.error('Gagal mengubah akses akun:', e);
       alert('Gagal mengubah akses akun. Coba lagi.');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleSaveTokens = async (uid: string, currentValue: number) => {
+    const raw = tokenDrafts[uid];
+    const parsed = raw === undefined || raw === '' ? currentValue : Number(raw);
+    if (isNaN(parsed) || parsed < 0) {
+      alert('Jumlah token harus angka 0 atau lebih.');
+      return;
+    }
+    setSavingId(uid);
+    try {
+      await setUserAskTokens(uid, Math.floor(parsed));
+      setTokenDrafts(prev => {
+        const next = { ...prev };
+        delete next[uid];
+        return next;
+      });
+    } catch (e) {
+      console.error('Gagal mengubah token:', e);
+      alert('Gagal mengubah token. Coba lagi.');
     } finally {
       setSavingId(null);
     }
@@ -111,6 +135,26 @@ export const UserManagementPanel: React.FC<UserManagementPanelProps> = ({
                       {u.fullName} {isSelf && <span className="text-slate-500 text-xs">(Anda)</span>}
                     </p>
                     <p className="text-xs text-slate-400 truncate">{u.email}</p>
+                    {u.accessType !== 'fulltime' && u.accessType !== 'none' && (
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <span className="text-[11px] text-slate-400">Token bertanya:</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={tokenDrafts[u.id] ?? String(u.askTokens ?? 0)}
+                          onChange={(e) => setTokenDrafts(prev => ({ ...prev, [u.id]: e.target.value }))}
+                          className="w-14 py-0.5 px-1.5 bg-slate-950 border border-slate-700 rounded text-white text-xs focus:outline-none focus:border-purple-500"
+                        />
+                        <button
+                          type="button"
+                          disabled={isSaving || tokenDrafts[u.id] === undefined}
+                          onClick={() => handleSaveTokens(u.id, u.askTokens ?? 0)}
+                          className="px-2 py-0.5 rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-semibold transition-colors"
+                        >
+                          Simpan
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <span

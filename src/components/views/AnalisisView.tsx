@@ -66,7 +66,6 @@ export const AnalisisView: React.FC<AnalisisViewProps> = ({
   const [selectedPembina, setSelectedPembina] = useState<StaffContact | null>(
     SpreadsheetService.getStaffContacts().filter(s => s.role === 'Pembina')[0] || null
   );
-  const [consultationSent, setConsultationSent] = useState(false);
 
   // Direct quick-add to spreadsheet state
   const [showQuickAdd, setShowQuickAdd] = useState(false);
@@ -171,7 +170,6 @@ export const AnalisisView: React.FC<AnalisisViewProps> = ({
   // Triggered every time the user checks analysis: FETCHES DATA IN REALTIME FROM SPREADSHEET
   const handleAnalisisSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setConsultationSent(false);
 
     if (!unitName.trim()) {
       return;
@@ -232,21 +230,6 @@ export const AnalisisView: React.FC<AnalisisViewProps> = ({
   };
 
   const pembinaList = SpreadsheetService.getStaffContacts().filter(s => s.role === 'Pembina');
-
-  const handleSendToPembina = () => {
-    if (!selectedPembina) {
-      alert('Belum ada kontak Pembina yang terdaftar. Hubungi admin untuk menambahkan kontak Pembina di menu Spreadsheet Sync.');
-      return;
-    }
-    SpreadsheetService.addKonsultasiTicket({
-      unitName,
-      damagedComponent,
-      pembinaTujuan: selectedPembina.name,
-      catatan: 'Mohon arahan dan panduan teknis langkah servis untuk unit ini karena belum ada di spreadsheet.',
-      askedBy: currentUser?.fullName || 'Teknisi'
-    });
-    setConsultationSent(true);
-  };
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -405,7 +388,7 @@ export const AnalisisView: React.FC<AnalisisViewProps> = ({
                 required
                 value={unitName}
                 onChange={(e) => setUnitName(e.target.value)}
-                placeholder="Contoh: ZA-2240, Yamaha P7000S, Ampli OCL 150W, Power SOCL 504..."
+                placeholder="Contoh: ZA-2240"
                 className="w-full py-2.5 px-3.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -645,40 +628,26 @@ export const AnalisisView: React.FC<AnalisisViewProps> = ({
                       <p><strong className="text-amber-400">Kepada:</strong> {selectedPembina.name} ({selectedPembina.title})</p>
                       <p><strong className="text-blue-400">Unit:</strong> {unitName}</p>
                       <p><strong className="text-blue-400">Temuan Kerusakan:</strong> {damagedComponent}</p>
-                      <p><strong className="text-emerald-400">Catatan:</strong> "Mohon arahan dan panduan teknis langkah servis untuk unit ini karena belum ada di spreadsheet."</p>
                     </div>
 
-                    {!consultationSent ? (
-                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                        <a
-                          href={`https://wa.me/${toWaNumber(selectedPembina.phone)}?text=${encodeURIComponent(
-                            `Halo Pembina ${selectedPembina.name}, saya teknisi ingin menanyakan kasus unit yang tidak ada di spreadsheet:\nUnit: ${unitName}\nTemuan Kerusakan: ${damagedComponent}\nMohon panduannya.`
-                          )}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors"
-                        >
-                          <PhoneCall className="w-4 h-4" />
-                          Hubungi Pembina via WhatsApp
-                        </a>
+                    <a
+                      href={`https://wa.me/${toWaNumber(selectedPembina.phone)}?text=${encodeURIComponent(
+                        `Halo Pembina ${selectedPembina.name}, saya teknisi ingin menanyakan kasus unit yang tidak ada di spreadsheet:\nUnit: ${unitName}\nTemuan Kerusakan: ${damagedComponent}\nMohon panduannya.`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <PhoneCall className="w-4 h-4" />
+                      Hubungi Pembina via WhatsApp
+                    </a>
 
-                        <button
-                          type="button"
-                          onClick={handleSendToPembina}
-                          className="flex-1 py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                        >
-                          <Send className="w-4 h-4" />
-                          Kirim Tiket Konsultasi Internal
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="p-3 rounded-xl bg-emerald-950/60 border border-emerald-700/70 text-emerald-300 text-xs flex items-center gap-2.5">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                        <span>
-                          Pertanyaan telah terkirim kepada Pembina <strong>{selectedPembina.name}</strong>. Pembina akan segera merespons via sistem atau chat.
-                        </span>
-                      </div>
-                    )}
+                    <div className="p-3 rounded-xl bg-purple-950/40 border border-purple-800/60 text-purple-200 text-xs flex items-center gap-2.5">
+                      <MessageSquare className="w-4 h-4 text-purple-400 shrink-0" />
+                      <span>
+                        Atau klik ikon <strong>💬 Tanya Pembina</strong> di pojok kanan bawah layar untuk chat langsung di dalam aplikasi - tersimpan otomatis dan Pembina bisa membalas kapan saja.
+                      </span>
+                    </div>
                   </>
                 )}
               </div>

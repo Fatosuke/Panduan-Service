@@ -9,6 +9,7 @@ export interface User {
   accessType: AccessType;
   accessExpiry?: string; // ISO date string for 6 months access
   registeredAt: string;
+  askTokens?: number; // sisa jatah bertanya ke Pembina (untuk akun non-fulltime)
 }
 
 export interface WhitelistEntry {
@@ -131,17 +132,24 @@ export interface StaffContact {
   specialty: string;
 }
 
-export interface KonsultasiTicket {
+export interface ChatThread {
   id: string;
-  unitName: string;
-  damagedComponent: string;
-  pembinaTujuan: string;
-  catatan: string;
-  askedBy: string;
-  status: 'Menunggu' | 'Dijawab';
-  jawaban?: string;
+  askerId: string;
+  askerName: string;
+  pembinaName: string;
+  subject: string;
+  status: 'active' | 'closed';
   createdAt: string;
-  answeredAt?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  threadId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: AccessType;
+  text: string;
+  createdAt: string;
 }
 
 export interface SpreadsheetConfig {

@@ -12,7 +12,8 @@ import {
   TesAmpliItem,
   TesSpeakerItem,
   KomponenItem,
-  KonsultasiTicket
+  ChatThread,
+  ChatMessage
 } from '../types';
 import { 
   INITIAL_WHITELIST, 
@@ -37,12 +38,16 @@ import {
   serviceLogStore,
   whitelistStore,
   komponenKatalogStore,
-  konsultasiStore,
+  chatThreadsStore,
+  chatMessagesStore,
   subscribeToAnyDataChange,
   refreshAllStoresNow,
   pingBackend,
   isBackendConfigured,
   getStoreErrors,
+  startChatThread,
+  sendChatMessage,
+  closeChatThread,
 } from './backendService';
 
 const STORAGE_KEYS = {
@@ -328,40 +333,45 @@ export class SpreadsheetService {
   }
 
   // ==========================================
-  // TIKET KONSULTASI ("Tanyakan Pada Pembina")
-  // Siapapun yang sudah login & disetujui (bukan cuma Fulltime/Editor) bisa
-  // membuat tiket - hanya akun Fulltime/Editor yang bisa menjawab / mengubah
-  // statusnya (lihat requireSignedIn_ vs requireEditAccess_ di Code.gs).
+  // CHAT "TANYAKAN PADA PEMBINA" (live chat + token, menggantikan sistem
+  // tiket lama). Token (askTokens) hanya berlaku untuk akun non-fulltime,
+  // dikurangi 1 tiap memulai percakapan baru - dikelola manual oleh admin
+  // Fulltime lewat panel Kelola Akun.
   // ==========================================
-  public static getKonsultasiTickets(): KonsultasiTicket[] {
-    return konsultasiStore.isReady() ? konsultasiStore.getAll() : [];
+  public static getChatThreads(): ChatThread[] {
+    return chatThreadsStore.isReady() ? chatThreadsStore.getAll() : [];
   }
 
-  public static addKonsultasiTicket(data: Omit<KonsultasiTicket, 'id' | 'status' | 'createdAt'>): KonsultasiTicket {
-    const newTicket: KonsultasiTicket = {
-      ...data,
-      id: `tiket-${Date.now()}`,
-      status: 'Menunggu',
-      createdAt: new Date().toLocaleDateString('id-ID', {
-        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-      })
-    };
-    void konsultasiStore.add(newTicket);
-    return newTicket;
+  public static getChatMessages(): ChatMessage[] {
+    return chatMessagesStore.isReady() ? chatMessagesStore.getAll() : [];
   }
 
-  public static answerKonsultasiTicket(id: string, jawaban: string): void {
-    const ticket = this.getKonsultasiTickets().find(t => t.id === id);
-    if (!ticket) return;
-    const updated: KonsultasiTicket = {
-      ...ticket,
-      jawaban,
-      status: 'Dijawab',
-      answeredAt: new Date().toLocaleDateString('id-ID', {
-        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-      })
-    };
-    void konsultasiStore.update(updated);
+  /**
+   * Mulai percakapan baru dengan seorang Pembina. Melempar Error dengan
+   * message 'no_tokens' kalau akun non-fulltime kehabisan token dan
+   * usedExemption tidak diset - komponen UI menangkap ini untuk
+   * menampilkan pilihan "baca manual" / "tantangan fisik".
+   */
+  public static async startChatThread(input: {
+    pembinaName: string;
+    subject?: string;
+    firstMessage: string;
+    usedExemption?: boolean;
+  }): Promise<{ thread: ChatThread; message: ChatMessage }> {
+    const result = await startChatThread(input);
+    await Promise.all([chatThreadsStore.refresh(), chatMessagesStore.refresh()]);
+    return result;
+  }
+
+  public static async sendChatMessage(threadId: string, text: string): Promise<ChatMessage> {
+    const message = await sendChatMessage(threadId, text);
+    await chatMessagesStore.refresh();
+    return message;
+  }
+
+  public static async closeChatThread(threadId: string): Promise<void> {
+    await closeChatThread(threadId);
+    await chatThreadsStore.refresh();
   }
 
   // Robust CSV / TSV parser that supports quotes, commas, tabs (copy-paste from Google Sheets)

@@ -31,7 +31,8 @@ import {
   ServiceLogRecord,
   WhitelistEntry,
   KomponenItem,
-  KonsultasiTicket,
+  ChatThread,
+  ChatMessage,
 } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -205,6 +206,36 @@ export async function setUserAccessType(uid: string, accessType: AccessType): Pr
   await apiPost('setAccess', { token, targetUserId: uid, accessType });
 }
 
+export async function setUserAskTokens(uid: string, askTokens: number): Promise<void> {
+  const token = getStoredToken();
+  await apiPost('setAskTokens', { token, targetUserId: uid, askTokens });
+}
+
+// ---------------------------------------------------------------------------
+// Chat "Tanyakan Pada Pembina"
+// ---------------------------------------------------------------------------
+export async function startChatThread(input: {
+  pembinaName: string;
+  subject?: string;
+  firstMessage: string;
+  usedExemption?: boolean;
+}): Promise<{ thread: ChatThread; message: ChatMessage }> {
+  const token = getStoredToken();
+  const json = await apiPost('startChatThread', { token, ...input });
+  return { thread: json.thread, message: json.message };
+}
+
+export async function sendChatMessage(threadId: string, text: string): Promise<ChatMessage> {
+  const token = getStoredToken();
+  const json = await apiPost('sendChatMessage', { token, threadId, text });
+  return json.message;
+}
+
+export async function closeChatThread(threadId: string): Promise<void> {
+  const token = getStoredToken();
+  await apiPost('closeChatThread', { token, threadId });
+}
+
 // ---------------------------------------------------------------------------
 // Generic polling-based collection store (mirrors a single Sheet tab)
 // ---------------------------------------------------------------------------
@@ -350,7 +381,8 @@ export const staffStore = createCollectionStore<StaffContact>('Kontak_Staff');
 export const serviceLogStore = createCollectionStore<ServiceLogRecord>('Nomor_Service');
 export const whitelistStore = createCollectionStore<WhitelistEntry>('Whitelist_Siswa');
 export const komponenKatalogStore = createCollectionStore<KomponenItem>('Katalog_Komponen');
-export const konsultasiStore = createCollectionStore<KonsultasiTicket>('Tiket_Konsultasi');
+export const chatThreadsStore = createCollectionStore<ChatThread>('Chat_Threads');
+export const chatMessagesStore = createCollectionStore<ChatMessage>('Chat_Pesan');
 
 const allStores = [
   toolsStore,
@@ -363,7 +395,8 @@ const allStores = [
   serviceLogStore,
   whitelistStore,
   komponenKatalogStore,
-  konsultasiStore,
+  chatThreadsStore,
+  chatMessagesStore,
 ];
 
 export function startAllStores(): void {

@@ -38,7 +38,7 @@ sekitar 15-20 menit.
 1. Di bagian atas editor Apps Script, ada dropdown pilihan fungsi (biasanya bertuliskan `doGet` secara default). Ubah jadi **`setupSheets`**.
 2. Klik tombol **Run** (▶️).
 3. Pertama kali jalan, Google akan minta izin ("Authorization required"). Klik **Review permissions**, pilih akun Google Anda, klik **Advanced** kalau muncul peringatan "unverified app", lalu **Go to [nama project] (unsafe)** dan **Allow**. Ini aman - itu script milik Anda sendiri.
-4. Setelah selesai jalan (tidak ada tanda error merah di bawah), kembali ke tab Google Sheet - Anda akan lihat 12 tab baru sudah otomatis dibuat: `Alat_Kerja`, `Tipe_Ampli`, `Komponen_Rusak_Bagus`, `Pengetesan_Amplifier`, `Pengetesan_Speaker`, `Nomor_Service`, `Whitelist_Siswa`, `Analisis_Kerusakan`, `Kontak_Staff`, `Katalog_Komponen`, `Tiket_Konsultasi`, `Akun_Pengguna` - masing-masing dengan header kolom yang sudah sesuai.
+4. Setelah selesai jalan (tidak ada tanda error merah di bawah), kembali ke tab Google Sheet - Anda akan lihat 13 tab baru sudah otomatis dibuat: `Alat_Kerja`, `Tipe_Ampli`, `Komponen_Rusak_Bagus`, `Pengetesan_Amplifier`, `Pengetesan_Speaker`, `Nomor_Service`, `Whitelist_Siswa`, `Analisis_Kerusakan`, `Kontak_Staff`, `Katalog_Komponen`, `Chat_Threads`, `Chat_Pesan`, `Akun_Pengguna` - masing-masing dengan header kolom yang sudah sesuai.
 
 *(Opsional: kalau Anda punya data lama, tinggal copy-paste isinya ke tab yang sesuai, di bawah baris header. Jangan ubah nama kolom di baris pertama.)*
 

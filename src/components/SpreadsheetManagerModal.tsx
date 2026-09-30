@@ -2545,7 +2545,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                       required
                       value={newMemberName}
                       onChange={(e) => setNewMemberName(e.target.value)}
-                      placeholder="Contoh: Rian Hidayat, Budi Santoso..."
+                      placeholder="Nama lengkap, pisahkan dengan koma"
                       className="w-full py-2 px-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
                     />
                   </div>
@@ -2971,7 +2971,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                         required
                         value={newUnitName}
                         onChange={(e) => setNewUnitName(e.target.value)}
-                        placeholder="Contoh: Power Amplifier CA20"
+                        placeholder="Contoh: ZA-2240"
                         className="w-full py-2 px-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-indigo-500"
                       />
                     </div>
@@ -3193,7 +3193,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                         required
                         value={newStaffName}
                         onChange={(e) => setNewStaffName(e.target.value)}
-                        placeholder="Contoh: Tommy Wijaya"
+                        placeholder="Nama lengkap Pembina/Admin"
                         className="w-full py-2 px-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-purple-500"
                       />
                     </div>
@@ -3450,7 +3450,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                         required
                         value={newLogNama}
                         onChange={(e) => setNewLogNama(e.target.value)}
-                        placeholder="Contoh: Vicky / Agas Maulana / Tommy Wijaya"
+                        placeholder="Nama teknisi yang mengerjakan"
                         className="w-full py-2 px-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-500"
                       />
                     </div>
@@ -3463,7 +3463,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                         required
                         value={newLogNoSrv}
                         onChange={(e) => setNewLogNoSrv(e.target.value)}
-                        placeholder="Contoh: SRV-2025-004 atau No. Nota"
+                        placeholder="Contoh: GTC-2600001"
                         className="w-full py-2 px-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs font-mono focus:outline-none focus:border-cyan-500"
                       />
                     </div>
