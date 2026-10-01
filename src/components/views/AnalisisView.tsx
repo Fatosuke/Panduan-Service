@@ -46,6 +46,24 @@ export const AnalisisView: React.FC<AnalisisViewProps> = ({
   const [unitName, setUnitName] = useState('');
   const [damagedComponent, setDamagedComponent] = useState('');
 
+  // Random sample picker - pulled from the real Analisis_Kerusakan data in
+  // the spreadsheet, not hardcoded examples. Re-shuffled whenever the
+  // underlying data changes (e.g. a fulltime admin adds new records).
+  const pickRandomSamples = () => {
+    const records = SpreadsheetService.getAnalysisRecords();
+    const shuffled = [...records].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 3);
+  };
+  const [sampleRecords, setSampleRecords] = useState<AnalisisUnitRecord[]>(pickRandomSamples);
+
+  useEffect(() => {
+    const unsub = SpreadsheetService.subscribeToDataChanges(() => {
+      setSampleRecords(pickRandomSamples());
+    });
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Real-time synchronization state
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatusMsg, setSyncStatusMsg] = useState<string | null>(null);
@@ -441,33 +459,43 @@ export const AnalisisView: React.FC<AnalisisViewProps> = ({
           </button>
         </form>
 
-        {/* Quick Sample Picker */}
+        {/* Quick Sample Picker - diambil acak dari data Analisis_Kerusakan
+            sesungguhnya di spreadsheet, bukan contoh hardcode. */}
         <div className="mt-6 pt-4 border-t border-slate-700/60">
-          <span className="text-xs text-slate-400 block mb-2 font-medium">
-            Klik sampel data unit dari Spreadsheet untuk menguji sistem secara instan:
-          </span>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-slate-400 font-medium">
+              Klik sampel data unit dari Spreadsheet untuk menguji sistem secara instan:
+            </span>
+            {sampleRecords.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSampleRecords(pickRandomSamples())}
+                className="text-[11px] text-blue-400 hover:text-blue-300 underline cursor-pointer shrink-0"
+              >
+                Acak ulang
+              </button>
+            )}
+          </div>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickSample('ZA-2240', 'Dioda bridge')}
-              className="px-2.5 py-1 text-xs rounded-lg bg-emerald-950/70 border border-emerald-700 text-emerald-300 hover:border-emerald-500 cursor-pointer font-medium"
-            >
-              ⭐ ZA-2240 (Dioda bridge)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickSample('Ampli OCL 150W', 'Transistor Final 2SC5200 short')}
-              className="px-2.5 py-1 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:border-blue-500 cursor-pointer"
-            >
-              📋 Ampli OCL 150W (TR 2SC5200 short)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickSample('Power SOCL 504', 'Dioda Zener 12V bocor')}
-              className="px-2.5 py-1 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:border-blue-500 cursor-pointer"
-            >
-              📋 Power SOCL 504 (Dioda Zener bocor)
-            </button>
+            {sampleRecords.length === 0 && (
+              <span className="text-xs text-slate-500 italic">
+                Belum ada data di Analisis_Kerusakan - tambahkan lewat Spreadsheet Sync agar muncul contoh di sini.
+              </span>
+            )}
+            {sampleRecords.map((rec, idx) => (
+              <button
+                key={rec.id}
+                type="button"
+                onClick={() => handleQuickSample(rec.unitName, rec.damagedComponent)}
+                className={`px-2.5 py-1 text-xs rounded-lg cursor-pointer font-medium ${
+                  idx === 0
+                    ? 'bg-emerald-950/70 border border-emerald-700 text-emerald-300 hover:border-emerald-500'
+                    : 'bg-slate-900 border border-slate-700 text-slate-300 hover:border-blue-500'
+                }`}
+              >
+                {idx === 0 ? '⭐' : '📋'} {rec.unitName} ({rec.damagedComponent})
+              </button>
+            ))}
             <button
               type="button"
               onClick={() => handleQuickSample('Amplifier Custom Rakitan X', 'Suara mendadak keluar letupan frekuensi ultra')}
