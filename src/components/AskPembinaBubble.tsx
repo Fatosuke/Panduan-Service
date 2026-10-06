@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { formatDateTimeID } from '../utils/formatDate';
 import {
   MessageCircle,
   X,
@@ -77,16 +78,16 @@ export const AskPembinaBubble: React.FC<AskPembinaBubbleProps> = ({
     ? threads
     : threads.filter(t => t.askerId === currentUser.id);
 
-  const activeMyThreads = myThreads.filter(t => t.status === 'active').sort((a, b) => b.id.localeCompare(a.id));
-  const closedMyThreads = myThreads.filter(t => t.status === 'closed').sort((a, b) => b.id.localeCompare(a.id));
+  const activeMyThreads = myThreads.filter(t => t.status === 'active').reverse(); // terbaru di atas (urutan baris di spreadsheet)
+  const closedMyThreads = myThreads.filter(t => t.status === 'closed').reverse();
 
   const activeThread = myThreads.find(t => t.id === activeThreadId) || null;
   const threadMessages = activeThread
-    ? messages.filter(m => m.threadId === activeThread.id).sort((a, b) => a.id.localeCompare(b.id))
+    ? messages.filter(m => m.threadId === activeThread.id) // sudah berurutan sesuai baris di spreadsheet
     : [];
 
   const lastMessagePreview = (threadId: string) => {
-    const msgs = messages.filter(m => m.threadId === threadId).sort((a, b) => a.id.localeCompare(b.id));
+    const msgs = messages.filter(m => m.threadId === threadId);
     return msgs.length > 0 ? msgs[msgs.length - 1].text : '';
   };
 
@@ -384,7 +385,7 @@ export const AskPembinaBubble: React.FC<AskPembinaBubbleProps> = ({
                               <p className="text-[10px] font-bold text-purple-300 mb-0.5">{m.senderName}</p>
                             )}
                             <p className="leading-relaxed whitespace-pre-wrap">{m.text}</p>
-                            <p className={`text-[9px] mt-1 ${isMine ? 'text-purple-200' : 'text-slate-500'}`}>{m.createdAt}</p>
+                            <p className={`text-[9px] mt-1 ${isMine ? 'text-purple-200' : 'text-slate-500'}`}>{formatDateTimeID(m.createdAt)}</p>
                           </div>
                         </div>
                       );

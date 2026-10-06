@@ -1,3 +1,37 @@
+# Upgrade dari v13 ke v14 (baca ini dulu)
+
+Data yang sudah Anda isi di Google Sheet **tidak diubah**. Satu-satunya
+tambahan di Sheet: judul kolom `ownerId` di kolom G tab `Nomor_Service`
+(otomatis dibuat), dan tab tersembunyi `_bak_...` sebagai cadangan sebelum
+sebuah tab diganti total lewat impor.
+
+**Urutan (lakukan berurutan, jangan ditunda lama di antaranya):**
+
+1. **Code.gs** - buka Apps Script, hapus isi lama, tempel isi `google-apps-script/Code.gs`
+   yang baru, **Save**.
+2. Pilih fungsi **`authorizeDrive`** di dropdown atas, klik **Run**, lalu setujui
+   izin Google Drive (dibutuhkan agar foto/video bisa diunggah ke folder Drive
+   "Panduan Service - Media"). Pilih fungsi **`setupSheets`** lalu **Run** sekali juga.
+3. **Deploy > Manage deployments > (ikon pensil) > Version: New version > Deploy.**
+   URL Web App tetap sama, tidak perlu mengubah env var di Vercel.
+4. **Segera** unggah isi folder ini ke GitHub (Vercel build otomatis). Web lama tidak
+   cocok dengan Code.gs baru, jadi jangan menunda langkah ini.
+5. (Disarankan) Setelah Code.gs baru aktif, kosongkan isi tab `Sessions`
+   (hapus baris 2 ke bawah, biarkan baris judul). Di versi lama tab ini bisa
+   dibaca siapa pun yang tahu URL Apps Script, jadi semua orang cukup login ulang
+   sekali agar token lama tidak berlaku.
+6. File lama `firebase-applet-config.json` sudah dihapus dari paket ini; kalau masih
+   ada di repo GitHub, boleh dihapus di sana (tidak dipakai lagi).
+
+**Perubahan utama v14:** pembacaan data wajib login dan chat/Nomor Service disaring
+per akun di server; foto/video besar diunggah ke Google Drive (sel Sheets maksimal
+50.000 karakter); gagal menyimpan sekarang memunculkan pesan (item tidak hilang diam-diam);
+impor CSV mengenali kolom dari nama header, tidak menimpa data lama tanpa konfirmasi
+dan cadangan otomatis; akses 6 bulan benar-benar berakhir; batas percobaan login; satu
+permintaan polling untuk semua tab (lebih ringan) dan berhenti saat tab browser tidak dilihat.
+
+---
+
 # Panduan Setup - Google Sheets sebagai Database + Apps Script
 
 Arsitektur baru ini 100% gratis selamanya, tidak butuh kartu kredit, dan

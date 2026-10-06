@@ -66,6 +66,67 @@ const STORAGE_KEYS = {
 };
 
 export class SpreadsheetService {
+
+  // Nama kolom yang dikenali saat impor (sudah dinormalkan: huruf kecil tanpa simbol).
+  private static readonly ALIAS = {
+    tools: {
+      id: ['id'], name: ['namaalat', 'name', 'nama'], category: ['kategori', 'category'],
+      specs: ['spesifikasi', 'specs'], description: ['deskripsi', 'description'],
+      functionDesc: ['fungsimejakerja', 'functiondesc', 'fungsi'], howToUse: ['soppemakaian', 'howtouse', 'sop'],
+      safetyTips: ['tipsk3', 'safetytips'], mediaUrl: ['mediaurl', 'urlmedia'], mediaType: ['tipemedia', 'mediatype'],
+    },
+    ampli: {
+      id: ['id'], name: ['namaampli', 'namaproduk', 'name', 'nama'],
+      classType: ['kategoriproduk', 'kelastopologi', 'classtype', 'kelas'],
+      powerRange: ['dayarms', 'powerrange', 'daya'], voltageSupply: ['teganganpsu', 'voltagesupply', 'tegangan'],
+      description: ['deskripsi', 'description'], characteristics: ['karakteristik', 'characteristics'],
+      commonFailures: ['titikrawan', 'commonfailures'], schematicTips: ['tipsteknisi', 'schematictips'],
+      typicalTransistors: ['semikonduktorutama', 'typicaltransistors', 'semikonduktor'],
+      mediaUrl: ['mediaurl', 'urlmedia'], mediaType: ['tipemedia', 'mediatype'],
+    },
+    media: {
+      id: ['id'], title: ['judulkomponen', 'judul', 'title'], mediaType: ['tipemedia', 'mediatype'],
+      mediaUrl: ['urlmedia', 'mediaurl'], caption: ['keterangan', 'caption'],
+      componentName: ['namakomponen', 'componentname'], goodSymptom: ['gejalanormal', 'goodsymptom'],
+      badSymptom: ['gejalarusak', 'badsymptom'], testMethod: ['metodepengujian', 'testmethod'],
+      normalValue: ['nilainormal', 'normalvalue'], damagedValue: ['nilairusak', 'damagedvalue'],
+    },
+    tesAmpli: {
+      id: ['id'], num: ['nomorurut', 'num', 'no'], title: ['judullangkah', 'title'], tag: ['kategoritag', 'tag'],
+      action: ['tindakansop', 'action'], target: ['targetnormal', 'target'], failure: ['tandakerusakan', 'failure'],
+      tips: ['tipsproteksi', 'tips'], mediaUrl: ['mediaurl', 'urlmedia'], mediaType: ['tipemedia', 'mediatype'],
+    },
+    tesSpeaker: {
+      id: ['id'], num: ['nomorurut', 'num', 'no'], title: ['judullangkah', 'title'], method: ['metodeuji', 'method'],
+      sop: ['prosedursop', 'sop'], normal: ['responnormal', 'normal'], defect: ['gejalarusak', 'defect'],
+      tip: ['tipsteknisi', 'tip'], mediaUrl: ['mediaurl', 'urlmedia'], mediaType: ['tipemedia', 'mediatype'],
+    },
+    analisis: {
+      id: ['id'], unitName: ['namaunit', 'unitname', 'unit'], serialNumber: ['serialnumber', 'sn', 'serial'],
+      damagedComponent: ['komponenrusak', 'damagedcomponent'],
+      diagnosisResult: ['hasildiagnosadansolusi', 'hasildiagnosa', 'diagnosisresult'],
+      rootCause: ['penyebabutama', 'rootcause'], repairSteps: ['langkahperbaikan', 'repairsteps'],
+      recommendedParts: ['partpengganti', 'recommendedparts'], difficulty: ['tingkatkesulitan', 'difficulty'],
+      estimatedTime: ['estimasiwaktu', 'estimatedtime'],
+    },
+    staff: {
+      id: ['id'], name: ['nama', 'name'], role: ['peran', 'role'], title: ['jabatan', 'title'],
+      phone: ['nowhatsapp', 'phone', 'telepon', 'nohp'], email: ['email'], status: ['status'],
+      specialty: ['spesialisasi', 'specialty'],
+    },
+    whitelist: {
+      id: ['id'], name: ['namalengkap', 'nama', 'name'], department: ['departemen', 'department'],
+      notes: ['catatan', 'notes'], accessType: ['accesstype', 'tipeakses', 'akses'],
+    },
+    serviceLog: {
+      namaYangMengerjakan: ['namayangmengerjakan', 'namapengerja', 'nama'],
+      nomorService: ['nomorservice', 'noservice', 'nomor'],
+      analisaKerusakan: ['analisakerusakan', 'analisa'],
+      komponenDiganti: ['komponenyangdiganti', 'komponendiganti', 'komponen'],
+      createdAt: ['tanggal', 'createdat', 'waktu'],
+    },
+  };
+
   private static getStored<T>(key: string, fallback: T): T {
     try {
       const data = localStorage.getItem(key);
@@ -86,26 +147,21 @@ export class SpreadsheetService {
   // ==========================================
   // NOTE ON AUTHENTICATION
   // ==========================================
-  // Real login/register/logout now live in firebaseService.ts (Firebase
-  // Authentication, real password verification) and are called directly
-  // from AuthScreen.tsx / App.tsx. The old name-matching verifyNameAccess()
-  // and the fake localStorage-only registerUser()/login() are gone - they
-  // let anyone become a fulltime admin just by typing "Vicky" as their
-  // name. Whether someone can edit is now decided by the `accessType`
-  // field on their account document in Firestore, which only an existing
-  // fulltime admin (or Vicky herself, once, from the Firebase Console) can
-  // set - and that rule is enforced server-side by firestore.rules.
+  // Login / daftar / keluar ada di backendService.ts (Google Apps Script,
+  // kata sandi di-hash di server). Boleh tidaknya seseorang mengedit
+  // ditentukan oleh kolom `accessType` di tab Akun_Pengguna, yang hanya bisa
+  // diubah akun Fulltime lewat panel "Kelola Akun" - dan dicek ulang di server.
 
   // Whitelist / roster - kept as an informational list (e.g. "daftar siswa
   // yang pernah magang"). It is no longer used to decide who gets fulltime
-  // access; that is entirely controlled by each account's Firestore
-  // `accessType` field via the "Kelola Akun" panel.
+  // access; that is entirely controlled by each account's `accessType`
+  // field via the "Kelola Akun" panel.
   public static getWhitelist(): WhitelistEntry[] {
     return whitelistStore.isReady() ? whitelistStore.getAll() : INITIAL_WHITELIST;
   }
 
   public static saveWhitelist(entries: WhitelistEntry[]): void {
-    void whitelistStore.replaceAll(entries);
+    this.fire(whitelistStore.replaceAll(entries));
   }
 
   public static addWhitelistEntry(name: string, department = 'Teknisi Audio'): WhitelistEntry {
@@ -120,7 +176,7 @@ export class SpreadsheetService {
     // Fire-and-forget: the store updates its in-memory cache synchronously
     // (before the network write resolves), so getWhitelist() called right
     // after this already reflects the new entry.
-    void whitelistStore.add({ ...entryData, id: tempId });
+    this.fire(whitelistStore.add({ ...entryData, id: tempId }));
     return { id: tempId, ...entryData };
   }
 
@@ -154,7 +210,7 @@ export class SpreadsheetService {
   }
 
   /**
-   * Subscribe to ANY change in the shared Firestore data (local edit or a
+   * Subscribe to ANY change in the shared spreadsheet data (local edit or a
    * change made from another device). Call the returned unsubscribe
    * function on unmount. Used by tabs/views to stay in sync in real time.
    */
@@ -192,16 +248,16 @@ export class SpreadsheetService {
   }
 
   public static saveMediaGuides(guides: ComponentMediaGuide[]): void {
-    void mediaGuideStore.replaceAll(guides);
+    this.fire(mediaGuideStore.replaceAll(guides));
   }
 
   public static addOrUpdateMediaGuide(guide: ComponentMediaGuide): void {
     const exists = this.getMediaGuides().some(g => g.id === guide.id);
     if (exists) {
-      void mediaGuideStore.update(guide);
+      this.fire(mediaGuideStore.update(guide));
     } else {
       const id = guide.id || `media-${Date.now()}`;
-      void mediaGuideStore.add({ ...guide, id });
+      this.fire(mediaGuideStore.add({ ...guide, id }));
     }
   }
 
@@ -290,7 +346,7 @@ export class SpreadsheetService {
   }
 
   public static saveAnalysisRecords(records: AnalisisUnitRecord[]): void {
-    void analisisStore.replaceAll(records);
+    this.fire(analisisStore.replaceAll(records));
   }
 
   // Staff Contacts (Pembina & Admin)
@@ -299,7 +355,7 @@ export class SpreadsheetService {
   }
 
   public static saveStaffContacts(contacts: StaffContact[]): void {
-    void staffStore.replaceAll(contacts);
+    this.fire(staffStore.replaceAll(contacts));
   }
 
   // ==========================================
@@ -310,21 +366,21 @@ export class SpreadsheetService {
   }
 
   public static saveKomponenKatalog(items: KomponenItem[]): void {
-    void komponenKatalogStore.replaceAll(items);
+    this.fire(komponenKatalogStore.replaceAll(items));
   }
 
   public static addKomponenKatalogItem(data: Omit<KomponenItem, 'id'>): KomponenItem {
     const newItem: KomponenItem = { ...data, id: `komp-${Date.now()}` };
-    void komponenKatalogStore.add(newItem);
+    this.fire(komponenKatalogStore.add(newItem));
     return newItem;
   }
 
   public static updateKomponenKatalogItem(item: KomponenItem): void {
-    void komponenKatalogStore.update(item);
+    this.fire(komponenKatalogStore.update(item));
   }
 
   public static deleteKomponenKatalogItem(id: string): void {
-    void komponenKatalogStore.remove(id);
+    this.fire(komponenKatalogStore.remove(id));
   }
 
   public static resetKomponenKatalog(): KomponenItem[] {
@@ -374,35 +430,177 @@ export class SpreadsheetService {
     await chatThreadsStore.refresh();
   }
 
-  // Robust CSV / TSV parser that supports quotes, commas, tabs (copy-paste from Google Sheets)
-  public static parseDelimitedText(text: string): string[][] {
-    const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
-    const rows: string[][] = [];
+  // ==========================================
+  // HELPER UMUM (impor / ekspor)
+  // ==========================================
 
-    for (const line of lines) {
-      // Determine delimiter: tab (if copy-pasted from spreadsheet) or comma
-      const isTab = line.includes('\t');
-      const delimiter = isTab ? '\t' : ',';
+  /** Jalankan penyimpanan di latar belakang; error sudah dilaporkan oleh store. */
+  private static fire(p: Promise<unknown>): void {
+    p.catch((e) => console.error('[SpreadsheetService] Gagal menyimpan ke spreadsheet:', e));
+  }
 
-      const row: string[] = [];
-      let inQuotes = false;
-      let cell = '';
+  private static normHeader(h: unknown): string {
+    return String(h ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
 
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === delimiter && !inQuotes) {
-          row.push(cell.trim().replace(/^["']|["']$/g, ''));
-          cell = '';
-        } else {
-          cell += char;
-        }
+  private static csvCell(val: unknown): string {
+    return `"${String(val ?? '').replace(/"/g, '""')}"`;
+  }
+
+  /**
+   * Baca tabel hasil parseDelimitedText. Kolom dikenali dari NAMA header
+   * (urutan kolom bebas, nama versi template maupun nama kolom asli di Sheet
+   * sama-sama diterima). Kalau tidak ada header yang dikenali, dipakai urutan
+   * kolom bawaan (defaultOrder).
+   */
+  private static readTable(
+    rows: string[][],
+    aliases: Record<string, string[]>,
+    defaultOrder: string[]
+  ): { hasHeader: boolean; records: Record<string, string>[] } {
+    const header = rows[0] || [];
+    const normed = header.map((h) => this.normHeader(h));
+    const colOf: Record<string, number> = {};
+    let matched = 0;
+    for (const field of Object.keys(aliases)) {
+      const idx = normed.findIndex((h) => h && aliases[field].includes(h));
+      if (idx !== -1) {
+        colOf[field] = idx;
+        matched++;
       }
-      row.push(cell.trim().replace(/^["']|["']$/g, ''));
-      rows.push(row);
     }
+    const hasHeader = matched >= 3;
+    const looksLikeHeader =
+      !hasHeader &&
+      header.filter((c) => /^[A-Za-z]+(_[A-Za-z0-9]+)+$/.test(c.trim()) || /^id$/i.test(c.trim())).length >= 2;
+    let order = colOf;
+    if (!hasHeader) {
+      order = {};
+      defaultOrder.forEach((f, i) => {
+        order[f] = i;
+      });
+    }
+    const body = hasHeader || looksLikeHeader ? rows.slice(1) : rows;
+    const records = body.map((r) => {
+      // Semua field dikenal selalu ada (kosong bila kolomnya tidak ada di data).
+      const o: Record<string, string> = {};
+      Object.keys(aliases).forEach((f) => {
+        o[f] = '';
+      });
+      Object.keys(order).forEach((f) => {
+        o[f] = String(r[order[f]] ?? '').trim();
+      });
+      return o;
+    });
+    return { hasHeader: hasHeader || looksLikeHeader, records };
+  }
 
+  /** ID dari data impor; kalau kosong / kembar dibuatkan ID baru. */
+  private static importId(prefix: string, given: string | undefined, i: number, used: Set<string>): string {
+    let id = (given || '').trim();
+    if (!id || used.has(id)) id = `${prefix}-${Date.now()}-${i}`;
+    used.add(id);
+    return id;
+  }
+
+  private static splitList(raw: string, alsoSemicolon = false): string[] {
+    const re = alsoSemicolon ? /\n|\||;/ : /\n|\|/;
+    return String(raw || '')
+      .split(re)
+      .map((x) => x.trim())
+      .filter(Boolean);
+  }
+
+  private static detectMediaType(url: string, explicit?: string): 'image' | 'video' {
+    const e = (explicit || '').toLowerCase().trim();
+    if (e.includes('video')) return 'video';
+    if (e.includes('image') || e.includes('gambar') || e.includes('foto')) return 'image';
+    const u = (url || '').toLowerCase();
+    if (
+      u.startsWith('data:video/') ||
+      u.includes('youtu') ||
+      /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/.test(u) ||
+      /drive\.google\.com\/file\/d\/[^/]+\/preview/.test(u)
+    ) {
+      return 'video';
+    }
+    return 'image';
+  }
+
+  private static normalizeClassType(raw: string): AmpliItem['classType'] {
+    const allowed: AmpliItem['classType'][] = [
+      'Amplifier Low Impedance',
+      'Amplifier High Impedance',
+      'Speaker Low Impedance',
+      'Speaker High Impedance',
+      'Microphone Kabel',
+      'Microphone Wireless',
+      'Lain-lain',
+    ];
+    const v = (raw || '').trim().toLowerCase();
+    const exact = allowed.find((a) => a.toLowerCase() === v);
+    if (exact) return exact;
+    const high = /high|hi-z|hi z|100\s?v|70\s?v/.test(v);
+    if (v.includes('mic')) return /wireless|nirkabel/.test(v) ? 'Microphone Wireless' : 'Microphone Kabel';
+    if (/speaker|spiker|horn|box|kolom/.test(v)) return high ? 'Speaker High Impedance' : 'Speaker Low Impedance';
+    if (/amp|power|mixer/.test(v)) return high ? 'Amplifier High Impedance' : 'Amplifier Low Impedance';
+    return 'Lain-lain';
+  }
+
+  private static normalizeDifficulty(raw: string): 'Mudah' | 'Sedang' | 'Sulit' | 'Kritis' {
+    const v = (raw || '').trim().toLowerCase();
+    if (v === 'mudah' || v === 'rendah') return 'Mudah';
+    if (v === 'sulit' || v === 'tinggi') return 'Sulit';
+    if (v === 'kritis') return 'Kritis';
+    return 'Sedang';
+  }
+
+  // Robust CSV / TSV parser: kutip ganda, tanda kutip di dalam kutip (""),
+  // dan sel yang berisi baris baru (hasil copy dari Google Sheets).
+  public static parseDelimitedText(text: string): string[][] {
+    const src = String(text || '').replace(/^\uFEFF/, '');
+    const firstLine = src.split(/\r?\n/).find((l) => l.trim().length > 0) || '';
+    // Prioritas: tab (copy dari Sheets) > koma (CSV) > titik koma.
+    const delimiter = firstLine.includes('\t') ? '\t' : firstLine.includes(',') ? ',' : firstLine.includes(';') ? ';' : ',';
+
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let cell = '';
+    let inQuotes = false;
+
+    const pushRow = () => {
+      row.push(cell.trim());
+      cell = '';
+      if (row.some((c) => c.length > 0)) rows.push(row);
+      row = [];
+    };
+
+    for (let i = 0; i < src.length; i++) {
+      const ch = src[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (src[i + 1] === '"') {
+            cell += '"';
+            i++;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          cell += ch;
+        }
+      } else if (ch === '"' && cell.length === 0) {
+        inQuotes = true;
+      } else if (ch === delimiter) {
+        row.push(cell.trim());
+        cell = '';
+      } else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && src[i + 1] === '\n') i++;
+        pushRow();
+      } else {
+        cell += ch;
+      }
+    }
+    pushRow();
     return rows;
   }
 
@@ -411,26 +609,26 @@ export class SpreadsheetService {
     try {
       const rows = this.parseDelimitedText(text);
       if (rows.length < 2) {
-        return { success: false, count: 0, error: 'Data kosong atau minimal harus memiliki header dan 1 baris data.' };
+        return { success: false, count: 0, error: 'Data kosong atau minimal harus memiliki baris header dan 1 baris data.' };
       }
-
-      // Check header or skip header if it starts with "nama"
-      const startIndex = rows[0][0].toLowerCase().includes('nama') ? 1 : 0;
+      const { records } = this.readTable(rows, this.ALIAS.whitelist, ['name', 'department', 'notes']);
+      const used = new Set<string>();
       const entries: WhitelistEntry[] = [];
 
-      for (let i = startIndex; i < rows.length; i++) {
-        const row = rows[i];
-        const name = row[0]?.trim();
-        if (!name) continue;
-
+      records.forEach((r, i) => {
+        if (!r.name) return;
+        // Level akses: kolom accessType kalau ada; kalau tidak, dibaca dari
+        // catatan / departemen ("... - Fulltime" -> fulltime).
+        const marker = `${r.accessType} ${r.notes} ${r.department}`.toLowerCase();
+        const accessType: WhitelistEntry['accessType'] = marker.includes('full') ? 'fulltime' : '6months';
         entries.push({
-          id: `wl-import-${Date.now()}-${i}`,
-          name,
-          accessType: row[1]?.toLowerCase().includes('full') ? 'fulltime' : '6months',
-          department: row[1] || 'Teknisi Audio',
-          notes: row[2] || 'Diimpor dari Google Sheets'
+          id: this.importId('wl-import', r.id, i, used),
+          name: r.name,
+          accessType,
+          department: r.department || 'Teknisi Audio',
+          notes: r.notes || 'Diimpor dari Google Sheets',
         });
-      }
+      });
 
       if (entries.length === 0) {
         return { success: false, count: 0, error: 'Tidak ditemukan baris nama yang valid dalam data tersebut.' };
@@ -448,37 +646,31 @@ export class SpreadsheetService {
     try {
       const rows = this.parseDelimitedText(text);
       if (rows.length < 2) {
-        return { success: false, count: 0, error: 'Data kosong atau minimal harus memiliki header dan 1 baris data.' };
+        return { success: false, count: 0, error: 'Data kosong atau minimal harus memiliki baris header dan 1 baris data.' };
       }
-
-      const startIndex = (rows[0][0].toLowerCase().includes('judul') || rows[0][0].toLowerCase().includes('title')) ? 1 : 0;
+      const { records } = this.readTable(rows, this.ALIAS.media, [
+        'id', 'title', 'mediaType', 'mediaUrl', 'caption', 'componentName',
+        'goodSymptom', 'badSymptom', 'testMethod', 'normalValue', 'damagedValue',
+      ]);
+      const used = new Set<string>();
       const mediaList: ComponentMediaGuide[] = [];
 
-      for (let i = startIndex; i < rows.length; i++) {
-        const row = rows[i];
-        const title = row[0]?.trim();
-        const rawType = row[1]?.trim().toLowerCase();
-        const mediaType: 'video' | 'image' = rawType.includes('image') || rawType.includes('gambar') || rawType.includes('foto') ? 'image' : 'video';
-        const mediaUrl = row[2]?.trim();
-        const componentName = row[3]?.trim() || 'Komponen Elektronika';
-        const caption = row[4]?.trim() || 'Panduan media komponen audio';
-
-        if (!title || !mediaUrl) continue;
-
+      records.forEach((r, i) => {
+        if (!r.title || !r.mediaUrl) return;
         mediaList.push({
-          id: `med-import-${Date.now()}-${i}`,
-          title,
-          mediaType,
-          mediaUrl,
-          componentName,
-          caption,
-          goodSymptom: row[5]?.trim() || 'Kondisi normal / parameter baik',
-          badSymptom: row[6]?.trim() || 'Kondisi rusak / korslet / short',
-          testMethod: row[7]?.trim() || 'Uji menggunakan Multimeter Digital',
-          normalValue: 'Normal',
-          damagedValue: 'Rusak'
+          id: this.importId('guide-import', r.id, i, used),
+          title: r.title,
+          mediaType: this.detectMediaType(r.mediaUrl, r.mediaType),
+          mediaUrl: r.mediaUrl,
+          componentName: r.componentName || 'Komponen Elektronika',
+          caption: r.caption || 'Panduan media komponen audio',
+          goodSymptom: r.goodSymptom || 'Kondisi normal / parameter baik',
+          badSymptom: r.badSymptom || 'Kondisi rusak / korslet / short',
+          testMethod: r.testMethod || 'Uji menggunakan Multimeter Digital',
+          normalValue: r.normalValue || 'Normal',
+          damagedValue: r.damagedValue || 'Rusak',
         });
-      }
+      });
 
       if (mediaList.length === 0) {
         return { success: false, count: 0, error: 'Tidak ada baris media yang valid (wajib ada Judul dan URL).' };
@@ -496,43 +688,39 @@ export class SpreadsheetService {
     try {
       const rows = this.parseDelimitedText(text);
       if (rows.length < 2) {
-        return { success: false, count: 0, error: 'Data kosong atau minimal harus memiliki header dan 1 baris data.' };
+        return { success: false, count: 0, error: 'Data kosong atau minimal harus memiliki baris header dan 1 baris data.' };
       }
-
-      const startIndex = (rows[0][0].toLowerCase().includes('unit') || rows[0][0].toLowerCase().includes('nama')) ? 1 : 0;
+      const { records: raw } = this.readTable(rows, this.ALIAS.analisis, [
+        'unitName', 'serialNumber', 'damagedComponent', 'diagnosisResult', 'rootCause',
+        'repairSteps', 'recommendedParts', 'difficulty', 'estimatedTime',
+      ]);
+      const used = new Set<string>();
       const records: AnalisisUnitRecord[] = [];
 
-      for (let i = startIndex; i < rows.length; i++) {
-        const row = rows[i];
-        const unitName = row[0]?.trim();
-        const serialNumber = row[1]?.trim() || 'SN-GENERIC';
-        const damagedComponent = row[2]?.trim();
-        const diagnosisResult = row[3]?.trim() || 'Kerusakan sirkuit teridentifikasi';
-        const rootCause = row[4]?.trim() || 'Beban berlebih / usia komponen';
-        const repairStepsStr = row[5]?.trim() || 'Periksa fisik, Ganti komponen, Uji daya';
-        const partsStr = row[6]?.trim() || damagedComponent || 'Komponen Pengganti';
-        const rawDiff = row[7]?.trim().toLowerCase();
-        let difficulty: 'Mudah' | 'Sedang' | 'Sulit' | 'Kritis' = 'Sedang';
-        if (rawDiff === 'mudah') difficulty = 'Mudah';
-        else if (rawDiff === 'sulit' || rawDiff === 'tinggi') difficulty = 'Sulit';
-        else if (rawDiff === 'kritis') difficulty = 'Kritis';
-        const estimatedTime = row[8]?.trim() || '45 Menit';
+      // Pemisah daftar: baris baru / | / ; . Koma hanya dipakai bila tidak ada
+      // pemisah lain (koma bisa bagian dari kalimat langkah).
+      const toList = (v: string, fallback: string[]): string[] => {
+        const parts = this.splitList(v, true);
+        if (parts.length > 1) return parts;
+        const commaParts = v.includes(',') ? v.split(',').map((x) => x.trim()).filter(Boolean) : parts;
+        return commaParts.length > 0 ? commaParts : fallback;
+      };
 
-        if (!unitName || !damagedComponent) continue;
-
+      raw.forEach((r, i) => {
+        if (!r.unitName || !r.damagedComponent) return;
         records.push({
-          id: `ana-import-${Date.now()}-${i}`,
-          unitName,
-          serialNumber,
-          damagedComponent,
-          diagnosisResult,
-          rootCause,
-          repairSteps: repairStepsStr.split(/[,;|]/).map(s => s.trim()).filter(Boolean),
-          recommendedParts: partsStr.split(/[,;|]/).map(s => s.trim()).filter(Boolean),
-          difficulty,
-          estimatedTime
+          id: this.importId('ana-import', r.id, i, used),
+          unitName: r.unitName,
+          serialNumber: r.serialNumber || 'SN-GENERIC',
+          damagedComponent: r.damagedComponent,
+          diagnosisResult: r.diagnosisResult || 'Kerusakan sirkuit teridentifikasi',
+          rootCause: r.rootCause || 'Beban berlebih / usia komponen',
+          repairSteps: toList(r.repairSteps, ['Periksa fisik', 'Ganti komponen', 'Uji daya']),
+          recommendedParts: toList(r.recommendedParts, [r.damagedComponent]),
+          difficulty: this.normalizeDifficulty(r.difficulty),
+          estimatedTime: r.estimatedTime || '45 Menit',
         });
-      }
+      });
 
       if (records.length === 0) {
         return { success: false, count: 0, error: 'Tidak ada baris analisis valid (wajib ada Nama Unit dan Komponen Rusak).' };
@@ -550,34 +738,27 @@ export class SpreadsheetService {
     try {
       const rows = this.parseDelimitedText(text);
       if (rows.length < 2) {
-        return { success: false, count: 0, error: 'Data kosong atau minimal harus memiliki header dan 1 baris data.' };
+        return { success: false, count: 0, error: 'Data kosong atau minimal harus memiliki baris header dan 1 baris data.' };
       }
-
-      const startIndex = rows[0][0].toLowerCase().includes('nama') ? 1 : 0;
+      const { records } = this.readTable(rows, this.ALIAS.staff, ['name', 'role', 'title', 'phone', 'email', 'specialty']);
+      const used = new Set<string>();
       const contacts: StaffContact[] = [];
 
-      for (let i = startIndex; i < rows.length; i++) {
-        const row = rows[i];
-        const name = row[0]?.trim();
-        const role = (row[1]?.trim() === 'Admin' ? 'Admin' : 'Pembina') as 'Pembina' | 'Admin';
-        const title = row[2]?.trim() || (role === 'Admin' ? 'Administrator Akses' : 'Pembina Teknis');
-        const phone = row[3]?.trim() || '+62 812-xxxx-xxxx';
-        const email = row[4]?.trim() || 'kontak@service-audio.id';
-        const specialty = row[5]?.trim() || 'Dukungan Teknis Audio';
-
-        if (!name) continue;
-
+      records.forEach((r, i) => {
+        if (!r.name) return;
+        const role: StaffContact['role'] = r.role.toLowerCase() === 'admin' ? 'Admin' : 'Pembina';
+        const statusMatch = (['Online', 'Bertugas', 'Standby'] as const).find((st) => st.toLowerCase() === r.status.toLowerCase());
         contacts.push({
-          id: `staff-import-${Date.now()}-${i}`,
-          name,
+          id: this.importId('staff-import', r.id, i, used),
+          name: r.name,
           role,
-          title,
-          phone,
-          email,
-          status: 'Online',
-          specialty
+          title: r.title || (role === 'Admin' ? 'Administrator Akses' : 'Pembina Teknis'),
+          phone: r.phone || '+62 812-xxxx-xxxx',
+          email: r.email || 'kontak@service-audio.id',
+          status: statusMatch || 'Online',
+          specialty: r.specialty || 'Dukungan Teknis Audio',
         });
-      }
+      });
 
       if (contacts.length === 0) {
         return { success: false, count: 0, error: 'Tidak ada kontak valid dalam data.' };
@@ -706,6 +887,8 @@ Tommy Wijaya,SRV-2025-003,Speaker aktif 15 inch protek terus menerus DCO bocor 1
   }> {
     try {
       await analisisStore.refresh();
+      const fetchError = analisisStore.getLastError();
+      if (fetchError) throw new Error(fetchError);
       const records = this.getAnalysisRecords();
       return {
         success: true,
@@ -802,8 +985,8 @@ Tommy Wijaya,SRV-2025-003,Speaker aktif 15 inch protek terus menerus DCO bocor 1
   // Spreadsheet URL configuration
   public static getSheetConfig(): SpreadsheetConfig {
     return this.getStored<SpreadsheetConfig>(STORAGE_KEYS.SHEET_CONFIG, {
-      sheetUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT_SAMPLE_AUDIO_SERVICE_DB/pub?output=csv',
-      isConnected: true,
+      sheetUrl: '',
+      isConnected: false,
       lastSynced: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
       rowCount: INITIAL_WHITELIST.length + INITIAL_ANALISIS_DATABASE.length,
       autoSyncEnabled: true
@@ -830,31 +1013,29 @@ Tommy Wijaya,SRV-2025-003,Speaker aktif 15 inch protek terus menerus DCO bocor 1
   public static async syncAnalysisRecordToSpreadsheet(
     record: AnalisisUnitRecord
   ): Promise<{ success: boolean; message: string; method?: string }> {
-    return {
-      success: true,
-      method: 'apps_script',
-      message: `Data untuk "${record.unitName}" tersimpan ke spreadsheet.`
-    };
+    await analisisStore.whenIdle();
+    const err = analisisStore.getLastWriteError();
+    if (err) return { success: false, method: 'apps_script', message: `Gagal menyimpan ke spreadsheet: ${err}` };
+    return { success: true, method: 'apps_script', message: `Data untuk "${record.unitName}" tersimpan ke spreadsheet.` };
   }
 
   public static async syncServiceLogToSpreadsheet(
     log: ServiceLogRecord
   ): Promise<{ success: boolean; message: string; method?: string }> {
-    return {
-      success: true,
-      method: 'apps_script',
-      message: `Catatan ${log.nomorService} tersimpan ke spreadsheet.`
-    };
+    await serviceLogStore.whenIdle();
+    const err = serviceLogStore.getLastWriteError();
+    if (err) return { success: false, method: 'apps_script', message: `Gagal menyimpan ke spreadsheet: ${err}` };
+    return { success: true, method: 'apps_script', message: `Catatan ${log.nomorService} tersimpan ke spreadsheet.` };
   }
 
   public static async syncAllAnalysisToSpreadsheet(
     records?: AnalisisUnitRecord[]
   ): Promise<{ success: boolean; message: string }> {
     const list = records || this.getAnalysisRecords();
-    return {
-      success: true,
-      message: `${list.length} data analisis tersimpan ke spreadsheet.`
-    };
+    await analisisStore.whenIdle();
+    const err = analisisStore.getLastWriteError();
+    if (err) return { success: false, message: `Gagal menyimpan ke spreadsheet: ${err}` };
+    return { success: true, message: `${list.length} data analisis tersimpan ke spreadsheet.` };
   }
 
   // ==========================================
@@ -866,7 +1047,7 @@ Tommy Wijaya,SRV-2025-003,Speaker aktif 15 inch protek terus menerus DCO bocor 1
   }
 
   public static saveServiceLogs(records: ServiceLogRecord[]): void {
-    void serviceLogStore.replaceAll(records);
+    this.fire(serviceLogStore.replaceAll(records));
   }
 
   public static addServiceLog(record: {
@@ -889,7 +1070,7 @@ Tommy Wijaya,SRV-2025-003,Speaker aktif 15 inch protek terus menerus DCO bocor 1
         minute: '2-digit'
       })
     };
-    void serviceLogStore.add(newLog);
+    this.fire(serviceLogStore.add(newLog));
 
     // Auto-sync in background to Google Spreadsheet (legacy manual OAuth path,
     // safe to leave: the automatic mirror now runs via GitHub Actions).
@@ -901,72 +1082,45 @@ Tommy Wijaya,SRV-2025-003,Speaker aktif 15 inch protek terus menerus DCO bocor 1
   }
 
   public static deleteServiceLog(id: string): void {
-    void serviceLogStore.remove(id);
+    this.fire(serviceLogStore.remove(id));
   }
 
   public static importServiceLogsText(text: string): { success: boolean; count: number; error?: string } {
     try {
-      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-      if (lines.length === 0) {
+      const rows = this.parseDelimitedText(text);
+      if (rows.length === 0) {
         return { success: false, count: 0, error: 'Data kosong. Tempelkan baris data nomor service.' };
       }
-
+      const { records } = this.readTable(rows, this.ALIAS.serviceLog, [
+        'namaYangMengerjakan', 'nomorService', 'analisaKerusakan', 'komponenDiganti', 'createdAt',
+      ]);
+      const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+      const used = new Set<string>();
       const newLogs: ServiceLogRecord[] = [];
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        // Skip header if present
-        if (i === 0 && (
-          line.toLowerCase().includes('nama') || 
-          line.toLowerCase().includes('nomor') || 
-          line.toLowerCase().includes('service') ||
-          line.toLowerCase().includes('analisa')
-        )) {
-          continue;
-        }
-
-        // Split by comma or tab or semicolon
-        const parts = line.includes('\t') 
-          ? line.split('\t') 
-          : line.includes(';') 
-          ? line.split(';') 
-          : line.split(',');
-
-        if (parts.length >= 4) {
-          const nama = parts[0]?.trim();
-          const noSrv = parts[1]?.trim();
-          const analisa = parts[2]?.trim();
-          const komponen = parts[3]?.trim();
-          const tanggal = parts[4]?.trim() || new Date().toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric'
-          });
-
-          if (nama && noSrv) {
-            newLogs.push({
-              id: `srv-imp-${Date.now()}-${i}`,
-              namaYangMengerjakan: nama,
-              nomorService: noSrv,
-              analisaKerusakan: analisa || '-',
-              komponenDiganti: komponen || '-',
-              createdAt: tanggal
-            });
-          }
-        }
-      }
+      records.forEach((r, i) => {
+        if (!r.namaYangMengerjakan || !r.nomorService) return;
+        newLogs.push({
+          id: this.importId('srv-imp', '', i, used),
+          namaYangMengerjakan: r.namaYangMengerjakan,
+          nomorService: r.nomorService,
+          analisaKerusakan: r.analisaKerusakan || '-',
+          komponenDiganti: r.komponenDiganti || '-',
+          createdAt: r.createdAt || today,
+        });
+      });
 
       if (newLogs.length === 0) {
-        return { 
-          success: false, 
-          count: 0, 
-          error: 'Format data tidak sesuai. Pastikan ada 4 kolom: Nama Yang Mengerjakan, Nomor Service, Analisa Kerusakan, Komponen Yang Diganti' 
+        return {
+          success: false,
+          count: 0,
+          error: 'Format data tidak sesuai. Pastikan ada kolom: Nama Yang Mengerjakan, Nomor Service, Analisa Kerusakan, Komponen Yang Diganti',
         };
       }
 
-      const existing = this.getServiceLogs();
-      const merged = [...newLogs, ...existing];
-      this.saveServiceLogs(merged);
+      // Hanya MENAMBAH catatan baru (satu permintaan) - catatan yang sudah ada
+      // (termasuk milik akun lain) tidak ikut ditulis ulang / ditimpa.
+      this.fire(serviceLogStore.addMany(newLogs));
       return { success: true, count: newLogs.length };
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Gagal memproses data';
@@ -991,7 +1145,10 @@ Tommy Wijaya,SRV-2025-003,Speaker aktif 15 inch protek terus menerus DCO bocor 1
   }
 
   // Parse CSV from Google Sheets export URL with auto detection
-  public static async syncFromSheetUrl(url: string): Promise<{ success: boolean; count: number; detectedType?: string; error?: string }> {
+  public static async syncFromSheetUrl(
+    url: string,
+    confirmReplace?: (tabLabel: string) => boolean
+  ): Promise<{ success: boolean; count: number; detectedType?: string; error?: string }> {
     try {
       if (!url || !url.startsWith('http')) {
         throw new Error('URL Spreadsheet tidak valid. Harap gunakan link Google Sheets publish to web CSV.');
@@ -1003,40 +1160,51 @@ Tommy Wijaya,SRV-2025-003,Speaker aktif 15 inch protek terus menerus DCO bocor 1
       }
 
       const text = await res.text();
-      const firstLine = text.split(/\r?\n/)[0]?.toLowerCase() || '';
+      // Jenis tab dikenali dari NAMA kolom di baris pertama (format template
+      // maupun nama kolom asli di Sheet). Kalau tidak dikenali, impor
+      // DIBATALKAN - tidak lagi diam-diam dianggap Whitelist.
+      const h = this.normHeader(text.split(/\r?\n/)[0] || '');
+      const has = (...keys: string[]) => keys.some((k) => h.includes(k));
 
-      let result: { success: boolean; count: number; error?: string };
-      let detectedType = 'Whitelist';
+      let detectedType: string;
+      let run: (t: string) => { success: boolean; count: number; error?: string };
 
-      if (firstLine.includes('nomor') && (firstLine.includes('service') || firstLine.includes('analisa') || firstLine.includes('komponen'))) {
+      if (has('nomorservice', 'namayangmengerjakan')) {
         detectedType = 'Catatan Nomor Service';
-        result = this.importServiceLogsText(text);
-      } else if (firstLine.includes('unit') || firstLine.includes('serial') || firstLine.includes('diagnosa')) {
+        run = (t) => this.importServiceLogsText(t);
+      } else if (has('serialnumber', 'unitname', 'namaunit')) {
         detectedType = 'Database Analisis Unit';
-        result = this.importAnalysisText(text);
-      } else if (firstLine.includes('alat') || firstLine.includes('sop_pemakaian') || firstLine.includes('fungsi_meja')) {
+        run = (t) => this.importAnalysisText(t);
+      } else if (has('namaalat', 'soppemakaian', 'fungsimejakerja', 'howtouse')) {
         detectedType = 'Tab 1: Alat-Alat Meja Kerja';
-        result = this.importToolsText(text);
-      } else if (firstLine.includes('ampli') && (firstLine.includes('kelas') || firstLine.includes('daya') || firstLine.includes('tegangan'))) {
+        run = (t) => this.importToolsText(t);
+      } else if (has('namaampli', 'classtype', 'dayarms', 'powerrange')) {
         detectedType = 'Tab 2: Nama & Tipe Ampli';
-        result = this.importAmpliText(text);
-      } else if (firstLine.includes('pengetesan_ampli') || (firstLine.includes('langkah') && (firstLine.includes('proteksi') || firstLine.includes('dco')))) {
+        run = (t) => this.importAmpliText(t);
+      } else if (has('tindakansop', 'tipsproteksi', 'targetnormal')) {
         detectedType = 'Tab 4: Pengetesan Amplifier';
-        result = this.importTestAmpliText(text);
-      } else if (firstLine.includes('speaker') || (firstLine.includes('langkah') && (firstLine.includes('spul') || firstLine.includes('metode_uji')))) {
+        run = (t) => this.importTestAmpliText(t);
+      } else if (has('metodeuji', 'prosedursop', 'responnormal')) {
         detectedType = 'Tab 5: Pengetesan Speaker';
-        result = this.importTestSpeakerText(text);
-      } else if (firstLine.includes('video') || firstLine.includes('gambar') || firstLine.includes('media') || firstLine.includes('gejala_normal')) {
+        run = (t) => this.importTestSpeakerText(t);
+      } else if (has('judulkomponen', 'gejalanormal', 'componentname')) {
         detectedType = 'Tab 3: Komponen Rusak/Bagus';
-        result = this.importMediaText(text);
-      } else if (firstLine.includes('pembina') || firstLine.includes('jabatan') || firstLine.includes('spesialisasi')) {
+        run = (t) => this.importMediaText(t);
+      } else if (has('nowhatsapp', 'jabatan', 'spesialisasi')) {
         detectedType = 'Kontak Pembina & Admin';
-        result = this.importStaffText(text);
-      } else {
+        run = (t) => this.importStaffText(t);
+      } else if (has('namalengkap', 'departemen')) {
         detectedType = 'Whitelist Pengguna';
-        result = this.importWhitelistText(text);
+        run = (t) => this.importWhitelistText(t);
+      } else {
+        throw new Error('Jenis tabel tidak dikenali dari baris header. Pastikan baris pertama berisi nama kolom sesuai template.');
       }
 
+      if (confirmReplace && !confirmReplace(detectedType)) {
+        return { success: false, count: 0, detectedType, error: 'Impor dibatalkan.' };
+      }
+
+      const result = run(text);
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -1063,21 +1231,21 @@ Tommy Wijaya,SRV-2025-003,Speaker aktif 15 inch protek terus menerus DCO bocor 1
   }
 
   public static saveToolsList(items: ToolItem[]): void {
-    void toolsStore.replaceAll(items);
+    this.fire(toolsStore.replaceAll(items));
   }
 
   public static addToolItem(data: Omit<ToolItem, 'id'>): ToolItem {
     const newItem: ToolItem = { ...data, id: `tool-${Date.now()}` };
-    void toolsStore.add(newItem);
+    this.fire(toolsStore.add(newItem));
     return newItem;
   }
 
   public static updateToolItem(item: ToolItem): void {
-    void toolsStore.update(item);
+    this.fire(toolsStore.update(item));
   }
 
   public static deleteToolItem(id: string): void {
-    void toolsStore.remove(id);
+    this.fire(toolsStore.remove(id));
   }
 
   public static resetToolsList(): ToolItem[] {
@@ -1093,21 +1261,21 @@ Tommy Wijaya,SRV-2025-003,Speaker aktif 15 inch protek terus menerus DCO bocor 1
   }
 
   public static saveAmpliList(items: AmpliItem[]): void {
-    void ampliStore.replaceAll(items);
+    this.fire(ampliStore.replaceAll(items));
   }
 
   public static addAmpliItem(data: Omit<AmpliItem, 'id'>): AmpliItem {
     const newItem: AmpliItem = { ...data, id: `amp-${Date.now()}` };
-    void ampliStore.add(newItem);
+    this.fire(ampliStore.add(newItem));
     return newItem;
   }
 
   public static updateAmpliItem(item: AmpliItem): void {
-    void ampliStore.update(item);
+    this.fire(ampliStore.update(item));
   }
 
   public static deleteAmpliItem(id: string): void {
-    void ampliStore.remove(id);
+    this.fire(ampliStore.remove(id));
   }
 
   public static resetAmpliList(): AmpliItem[] {
@@ -1120,16 +1288,16 @@ Tommy Wijaya,SRV-2025-003,Speaker aktif 15 inch protek terus menerus DCO bocor 1
   // ==========================================
   public static addMediaGuideItem(data: Omit<ComponentMediaGuide, 'id'>): ComponentMediaGuide {
     const newItem: ComponentMediaGuide = { ...data, id: `guide-${Date.now()}` };
-    void mediaGuideStore.add(newItem);
+    this.fire(mediaGuideStore.add(newItem));
     return newItem;
   }
 
   public static updateMediaGuideItem(item: ComponentMediaGuide): void {
-    void mediaGuideStore.update(item);
+    this.fire(mediaGuideStore.update(item));
   }
 
   public static deleteMediaGuideItem(id: string): void {
-    void mediaGuideStore.remove(id);
+    this.fire(mediaGuideStore.remove(id));
   }
 
   public static resetMediaGuides(): ComponentMediaGuide[] {
@@ -1145,21 +1313,21 @@ Tommy Wijaya,SRV-2025-003,Speaker aktif 15 inch protek terus menerus DCO bocor 1
   }
 
   public static saveTestAmpliList(items: TesAmpliItem[]): void {
-    void tesAmpliStore.replaceAll(items);
+    this.fire(tesAmpliStore.replaceAll(items));
   }
 
   public static addTestAmpliItem(data: Omit<TesAmpliItem, 'id'>): TesAmpliItem {
     const newItem: TesAmpliItem = { ...data, id: `step-amp-${Date.now()}` };
-    void tesAmpliStore.add(newItem);
+    this.fire(tesAmpliStore.add(newItem));
     return newItem;
   }
 
   public static updateTestAmpliItem(item: TesAmpliItem): void {
-    void tesAmpliStore.update(item);
+    this.fire(tesAmpliStore.update(item));
   }
 
   public static deleteTestAmpliItem(id: string): void {
-    void tesAmpliStore.remove(id);
+    this.fire(tesAmpliStore.remove(id));
   }
 
   public static resetTestAmpliList(): TesAmpliItem[] {
@@ -1175,21 +1343,21 @@ Tommy Wijaya,SRV-2025-003,Speaker aktif 15 inch protek terus menerus DCO bocor 1
   }
 
   public static saveTestSpeakerList(items: TesSpeakerItem[]): void {
-    void tesSpeakerStore.replaceAll(items);
+    this.fire(tesSpeakerStore.replaceAll(items));
   }
 
   public static addTestSpeakerItem(data: Omit<TesSpeakerItem, 'id'>): TesSpeakerItem {
     const newItem: TesSpeakerItem = { ...data, id: `step-spk-${Date.now()}` };
-    void tesSpeakerStore.add(newItem);
+    this.fire(tesSpeakerStore.add(newItem));
     return newItem;
   }
 
   public static updateTestSpeakerItem(item: TesSpeakerItem): void {
-    void tesSpeakerStore.update(item);
+    this.fire(tesSpeakerStore.update(item));
   }
 
   public static deleteTestSpeakerItem(id: string): void {
-    void tesSpeakerStore.remove(id);
+    this.fire(tesSpeakerStore.remove(id));
   }
 
   public static resetTestSpeakerList(): TesSpeakerItem[] {
@@ -1236,26 +1404,27 @@ tool-3,Solder Station Temperature Controlled,Solder & Pasang,60W - 80W 200C - 48
       if (rows.length < 2) {
         return { success: false, count: 0, error: 'Data kosong atau minimal harus memiliki baris header dan 1 baris data.' };
       }
-      const startIndex = rows[0][1]?.toLowerCase().includes('nama') || rows[0][0]?.toLowerCase().includes('id') ? 1 : 0;
+      const { hasHeader, records } = this.readTable(rows, this.ALIAS.tools, [
+        'id', 'name', 'category', 'specs', 'description', 'functionDesc', 'howToUse', 'safetyTips', 'mediaUrl', 'mediaType',
+      ]);
+      const used = new Set<string>();
       const tools: ToolItem[] = [];
-      for (let i = startIndex; i < rows.length; i++) {
-        const r = rows[i];
-        if (!r[1] && !r[0]) continue;
-        const name = String(r[1] || r[0]).trim();
-        if (!name) continue;
+      records.forEach((r, i) => {
+        const name = r.name || (!hasHeader ? r.id : '');
+        if (!name) return;
         tools.push({
-          id: String(r[0] && r[0].startsWith('tool-') ? r[0] : `tool-${Date.now()}-${i}`),
-          name: name,
-          category: (r[2] || 'Pengukuran') as any,
-          specs: String(r[3] || ''),
-          description: String(r[4] || ''),
-          functionDesc: String(r[5] || ''),
-          howToUse: r[6] ? String(r[6]).split('|').map(s => s.trim()).filter(Boolean) : [],
-          safetyTips: r[7] ? String(r[7]).split('|').map(s => s.trim()).filter(Boolean) : [],
-          mediaUrl: String(r[8] || '').trim(),
-          mediaType: (r[9] === 'video' || String(r[8] || '').includes('youtu')) ? 'video' : 'image'
+          id: this.importId('tool', r.name ? r.id : '', i, used),
+          name,
+          category: (r.category || 'Pengukuran') as ToolItem['category'],
+          specs: r.specs,
+          description: r.description,
+          functionDesc: r.functionDesc,
+          howToUse: this.splitList(r.howToUse),
+          safetyTips: this.splitList(r.safetyTips),
+          mediaUrl: r.mediaUrl,
+          mediaType: this.detectMediaType(r.mediaUrl, r.mediaType),
         });
-      }
+      });
       if (tools.length === 0) {
         return { success: false, count: 0, error: 'Tidak ada baris alat yang valid.' };
       }
@@ -1268,32 +1437,21 @@ tool-3,Solder Station Temperature Controlled,Solder & Pasang,60W - 80W 200C - 48
 
   // --- TAB 2: TIPE AMPLI ---
   public static getAmpliTemplateCSV(): string {
-    return `ID,Nama_Ampli,Kelas_Topologi,Daya_RMS,Tegangan_PSU,Semikonduktor_Utama,Deskripsi,Karakteristik,Titik_Rawan,Tips_Teknisi,Media_URL,Tipe_Media
-amp-1,SOCL 504 (Super OCL),Kelas AB,500W - 800W RMS @ 4Ω,45V - 65V CT DC,2SC5200 / 2SA1943 (4-8 Set),Driver legendaris lapangan dengan karakter suara bass nendang dan vokal tebal,Karakter flat-sub | Skema simetris sederhana | Mudah dimodifikasi,Transistor VAS (MJE340) panas over | Dioda bias 1N4148 | DCO geser saat panas,Gunakan trimpot multi-turn 1k untuk setting DCO yang presisi,https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600&auto=format&fit=crop,image
-amp-2,SOCL 506 (DC Servo),Kelas AB,500W - 1000W RMS @ 4Ω,45V - 75V CT DC,2SC5200 / 2SA1943 (4-10 Set),Penyempurnaan SOCL 504 dengan auto DCO servo menggunakan IC TL071,DCO otomatis stabil 0.00V | Vokal jernih minim distorsi | Stabil di lapangan,IC TL071 palsu menyebabkan DCO melonjak | Jalur feedback servo putus,Pastikan pin 4 (-15V) dan pin 7 (+15V) IC TL071 tepat simetris via zener 15V,https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop,image
-amp-3,Power CA20 Class H,Kelas H,1300W - 2000W RMS @ 4Ω,Low 55V CT / High 110V CT,Toshiba 2SC5200 / 2SA1943 + Mosfet IRFP260N,Power amplifier bertingkat efisiensi tinggi untuk subwoofer panggung konser besar,Efisiensi tinggi | Heatsink dingin saat volume pelan | Dinamika hentakan bass sangat kuat,Dioda stepper MUR1560 jebol | Mosfet switch short | Elco rel tegangan tinggi melar,Wajib kalibrasi sensor bias dan cek switching gate mosfet menggunakan osiloskop,https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&auto=format&fit=crop,image`;
+    // Urutan kolom SAMA dengan tab Tipe_Ampli di Google Sheet.
+    return `ID,Nama_Ampli,Kategori_Produk,Daya_RMS,Tegangan_PSU,Deskripsi,Karakteristik,Titik_Rawan,Tips_Teknisi,Semikonduktor_Utama,Media_URL,Tipe_Media
+amp-contoh-1,ZA-2240 (contoh),Amplifier Low Impedance,(isi daya RMS unit),(isi tegangan kerja),Contoh deskripsi singkat produk,Karakteristik pertama | Karakteristik kedua,Titik rawan pertama | Titik rawan kedua,Contoh tips teknisi saat servis,(isi semikonduktor utama),,image`;
   }
 
   public static exportAmpliCSV(): string {
     const list = this.getAmpliList();
-    const header = 'ID,Nama_Ampli,Kelas_Topologi,Daya_RMS,Tegangan_PSU,Semikonduktor_Utama,Deskripsi,Karakteristik,Titik_Rawan,Tips_Teknisi,Media_URL,Tipe_Media';
-    const rows = list.map(a => {
-      const escape = (val: string) => `"${(val || '').replace(/"/g, '""')}"`;
-      return [
-        escape(a.id),
-        escape(a.name),
-        escape(a.classType),
-        escape(a.powerRange),
-        escape(a.voltageSupply),
-        escape(a.typicalTransistors || ''),
-        escape(a.description),
-        escape((a.characteristics || []).join(' | ')),
-        escape((a.commonFailures || []).join(' | ')),
-        escape(a.schematicTips || ''),
-        escape(a.mediaUrl || ''),
-        escape(a.mediaType || 'image')
-      ].join(',');
-    });
+    const header = 'ID,Nama_Ampli,Kategori_Produk,Daya_RMS,Tegangan_PSU,Deskripsi,Karakteristik,Titik_Rawan,Tips_Teknisi,Semikonduktor_Utama,Media_URL,Tipe_Media';
+    const rows = list.map((a) =>
+      [
+        a.id, a.name, a.classType, a.powerRange, a.voltageSupply, a.description,
+        (a.characteristics || []).join(' | '), (a.commonFailures || []).join(' | '),
+        a.schematicTips || '', a.typicalTransistors || '', a.mediaUrl || '', a.mediaType || 'image',
+      ].map((v) => this.csvCell(v)).join(',')
+    );
     return [header, ...rows].join('\n');
   }
 
@@ -1303,28 +1461,30 @@ amp-3,Power CA20 Class H,Kelas H,1300W - 2000W RMS @ 4Ω,Low 55V CT / High 110V 
       if (rows.length < 2) {
         return { success: false, count: 0, error: 'Data kosong atau minimal harus memiliki baris header dan 1 baris data.' };
       }
-      const startIndex = rows[0][1]?.toLowerCase().includes('nama') || rows[0][0]?.toLowerCase().includes('id') ? 1 : 0;
+      const { hasHeader, records } = this.readTable(rows, this.ALIAS.ampli, [
+        'id', 'name', 'classType', 'powerRange', 'voltageSupply', 'description',
+        'characteristics', 'commonFailures', 'schematicTips', 'typicalTransistors', 'mediaUrl', 'mediaType',
+      ]);
+      const used = new Set<string>();
       const amplis: AmpliItem[] = [];
-      for (let i = startIndex; i < rows.length; i++) {
-        const r = rows[i];
-        if (!r[1] && !r[0]) continue;
-        const name = String(r[1] || r[0]).trim();
-        if (!name) continue;
+      records.forEach((r, i) => {
+        const name = r.name || (!hasHeader ? r.id : '');
+        if (!name) return;
         amplis.push({
-          id: String(r[0] && r[0].startsWith('amp-') ? r[0] : `amp-${Date.now()}-${i}`),
-          name: name,
-          classType: (r[2] || 'Kelas AB') as any,
-          powerRange: String(r[3] || ''),
-          voltageSupply: String(r[4] || ''),
-          typicalTransistors: String(r[5] || ''),
-          description: String(r[6] || ''),
-          characteristics: r[7] ? String(r[7]).split('|').map(s => s.trim()).filter(Boolean) : [],
-          commonFailures: r[8] ? String(r[8]).split('|').map(s => s.trim()).filter(Boolean) : [],
-          schematicTips: String(r[9] || ''),
-          mediaUrl: String(r[10] || '').trim(),
-          mediaType: (r[11] === 'video' || String(r[10] || '').includes('youtu')) ? 'video' : 'image'
+          id: this.importId('amp', r.name ? r.id : '', i, used),
+          name,
+          classType: this.normalizeClassType(r.classType),
+          powerRange: r.powerRange,
+          voltageSupply: r.voltageSupply,
+          typicalTransistors: r.typicalTransistors,
+          description: r.description,
+          characteristics: this.splitList(r.characteristics),
+          commonFailures: this.splitList(r.commonFailures),
+          schematicTips: r.schematicTips,
+          mediaUrl: r.mediaUrl,
+          mediaType: this.detectMediaType(r.mediaUrl, r.mediaType),
         });
-      }
+      });
       if (amplis.length === 0) {
         return { success: false, count: 0, error: 'Tidak ada baris tipe ampli yang valid.' };
       }
@@ -1337,58 +1497,36 @@ amp-3,Power CA20 Class H,Kelas H,1300W - 2000W RMS @ 4Ω,Low 55V CT / High 110V 
 
   // --- TAB 3: KOMPONEN RUSAK/BAGUS (MEDIA) ---
   public static getMediaTemplateCSV(): string {
-    return `ID,Judul_Komponen,Tipe_Media,URL_Media,Nama_Komponen,Gejala_Normal,Gejala_Rusak,Metode_Pengujian,Nilai_Normal,Nilai_Rusak
-guide-1,Transistor Final Toshiba 2SC5200 (NPN),video,https://www.youtube.com/watch?v=dQw4w9WgXcQ,Transistor Bipolar NPN,Junction B-C dan B-E tembus searah C-E terbuka,Kaki B-C B-E atau C-E short nol ohm bolak-balik,Uji skala Dioda Multimeter Digital,B-C: 0.500V - 0.650V B-E: 0.520V - 0.670V C-E: OL,0.000V (Short jebol) atau OL di semua kaki (Open)
-guide-2,Elco Power Supply 10000uF 80V/100V,image,https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop,Kapasitor Elektrolit,Kapasitansi mendekati rating ESR sangat rendah < 0.05Ω,Fisik kembung meledak nilai uF drop drastis atau bocor DC,Uji Kapasitansi & ESR Meter,9200uF - 10500uF ESR < 0.05 Ohm,Kapasitansi < 5000uF atau ESR > 1 Ohm (Kering)
-guide-3,Dioda Bridge Sisir / Kotak 35A - 50A,video,https://www.youtube.com/watch?v=dQw4w9WgXcQ,Dioda Penyearah AC-DC,Arus hanya mengalir satu arah pada tiap 4 dioda internal,Salah satu anoda-katoda short menembus AC ke DC,Uji Skala Dioda Multimeter Digital,Tegangan maju 0.450V - 0.600V tiap segmen dioda,Bunyi bip continue 0.00V atau OL dua arah`;
+    // Urutan kolom SAMA dengan tab Komponen_Rusak_Bagus di Google Sheet.
+    return `ID,Judul_Komponen,Tipe_Media,URL_Media,Keterangan,Nama_Komponen,Gejala_Normal,Gejala_Rusak,Metode_Pengujian,Nilai_Normal,Nilai_Rusak
+guide-contoh-1,Transistor Final (contoh),video,https://www.youtube.com/watch?v=ID_VIDEO,Keterangan singkat media,Transistor Bipolar NPN,Gejala saat komponen normal,Gejala saat komponen rusak,Uji skala Dioda Multimeter Digital,Nilai ukur normal,Nilai ukur rusak`;
   }
 
   public static exportMediaCSV(): string {
     const list = this.getMediaGuides();
-    const header = 'ID,Judul_Komponen,Tipe_Media,URL_Media,Nama_Komponen,Gejala_Normal,Gejala_Rusak,Metode_Pengujian,Nilai_Normal,Nilai_Rusak';
-    const rows = list.map(g => {
-      const escape = (val: string) => `"${(val || '').replace(/"/g, '""')}"`;
-      return [
-        escape(g.id),
-        escape(g.title),
-        escape(g.mediaType),
-        escape(g.mediaUrl),
-        escape(g.componentName),
-        escape(g.goodSymptom),
-        escape(g.badSymptom),
-        escape(g.testMethod),
-        escape(g.normalValue),
-        escape(g.damagedValue)
-      ].join(',');
-    });
+    const header = 'ID,Judul_Komponen,Tipe_Media,URL_Media,Keterangan,Nama_Komponen,Gejala_Normal,Gejala_Rusak,Metode_Pengujian,Nilai_Normal,Nilai_Rusak';
+    const rows = list.map((g) =>
+      [
+        g.id, g.title, g.mediaType, g.mediaUrl, g.caption, g.componentName,
+        g.goodSymptom, g.badSymptom, g.testMethod, g.normalValue, g.damagedValue,
+      ].map((v) => this.csvCell(v)).join(',')
+    );
     return [header, ...rows].join('\n');
   }
 
   // --- TAB 4: PENGETESAN AMPLIFIER ---
   public static getTestAmpliTemplateCSV(): string {
-    return `ID,Nomor_Urut,Judul_Langkah,Kategori_Tag,Tindakan_SOP,Target_Normal,Tanda_Kerusakan,Tips_Proteksi,Media_URL
-step-amp-1,1,Uji Keamanan Awal via Bohlam Seri 100W (Current Limiter),Proteksi Wajib,Pasang steker amplifier ke stop kontak bohlam seri 100W AC,Bohlam menyala terang sesaat lalu redup padam,Bohlam terus menyala terang benderang (ada jalur short),Jangan pernah mem-bypass bohlam seri sebelum langkah DCO aman,https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600&auto=format&fit=crop
-step-amp-2,2,Pengukuran Simetri Tegangan Catu Daya (+VCC GND -VCC),Power Supply DC,Ukur probe merah ke rel (+) lalu ke rel (-) terhadap Ground chasis,Kedua rel seimbang (misal +65.2V dan -65.1V),Salah satu rel drop (misal +65V tapi -20V),Ketidakseimbangan tegangan rel memicu DCO tinggi di speaker,https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop
-step-amp-3,3,Pengukuran Tegangan DCO (DC Offset di Terminal Speaker),Kritis Speaker,Ukur terminal output speaker (+) terhadap Ground tanpa musik,DCO di bawah 20mV (idealnya mendekati 0.00mV),DCO melonjak di atas 50mV apalagi belasan volt (SPUL TERBAKAR),Putar trimpot DCO perlahan dengan obeng keramik,https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop`;
+    return `ID,Nomor_Urut,Judul_Langkah,Kategori_Tag,Tindakan_SOP,Target_Normal,Tanda_Kerusakan,Tips_Proteksi,Media_URL,Tipe_Media
+step-amp-contoh-1,1,Judul langkah pengetesan (contoh),Proteksi Wajib,Tindakan yang dilakukan,Hasil yang diharapkan normal,Tanda bila ada kerusakan,Tips pengaman,,image`;
   }
 
   public static exportTestAmpliCSV(): string {
     const list = this.getTestAmpliList();
-    const header = 'ID,Nomor_Urut,Judul_Langkah,Kategori_Tag,Tindakan_SOP,Target_Normal,Tanda_Kerusakan,Tips_Proteksi,Media_URL';
-    const rows = list.map(s => {
-      const escape = (val: string) => `"${(val ?? '').toString().replace(/"/g, '""')}"`;
-      return [
-        escape(s.id),
-        escape(s.num.toString()),
-        escape(s.title),
-        escape(s.tag),
-        escape(s.action),
-        escape(s.target),
-        escape(s.failure),
-        escape(s.tips),
-        escape(s.mediaUrl || '')
-      ].join(',');
-    });
+    const header = 'ID,Nomor_Urut,Judul_Langkah,Kategori_Tag,Tindakan_SOP,Target_Normal,Tanda_Kerusakan,Tips_Proteksi,Media_URL,Tipe_Media';
+    const rows = list.map((s) =>
+      [s.id, String(s.num), s.title, s.tag, s.action, s.target, s.failure, s.tips, s.mediaUrl || '', s.mediaType || 'image']
+        .map((v) => this.csvCell(v)).join(',')
+    );
     return [header, ...rows].join('\n');
   }
 
@@ -1398,25 +1536,26 @@ step-amp-3,3,Pengukuran Tegangan DCO (DC Offset di Terminal Speaker),Kritis Spea
       if (rows.length < 2) {
         return { success: false, count: 0, error: 'Data kosong atau minimal harus memiliki baris header dan 1 baris data.' };
       }
-      const startIndex = rows[0][2]?.toLowerCase().includes('judul') || rows[0][0]?.toLowerCase().includes('id') ? 1 : 0;
+      const { records } = this.readTable(rows, this.ALIAS.tesAmpli, [
+        'id', 'num', 'title', 'tag', 'action', 'target', 'failure', 'tips', 'mediaUrl', 'mediaType',
+      ]);
+      const used = new Set<string>();
       const steps: TesAmpliItem[] = [];
-      for (let i = startIndex; i < rows.length; i++) {
-        const r = rows[i];
-        const title = String(r[2] || r[1] || r[0]).trim();
-        if (!title) continue;
+      records.forEach((r, i) => {
+        if (!r.title) return;
         steps.push({
-          id: String(r[0] && r[0].startsWith('step-') ? r[0] : `step-amp-${Date.now()}-${i}`),
-          num: Number(r[1]) || (steps.length + 1),
-          title: title,
-          tag: String(r[3] || 'Pengujian SOP'),
-          action: String(r[4] || ''),
-          target: String(r[5] || ''),
-          failure: String(r[6] || ''),
-          tips: String(r[7] || ''),
-          mediaUrl: String(r[8] || '').trim(),
-          mediaType: String(r[8] || '').includes('youtu') ? 'video' : 'image'
+          id: this.importId('step-amp', r.id, i, used),
+          num: Number(r.num) || steps.length + 1,
+          title: r.title,
+          tag: r.tag || 'Pengujian SOP',
+          action: r.action,
+          target: r.target,
+          failure: r.failure,
+          tips: r.tips,
+          mediaUrl: r.mediaUrl,
+          mediaType: this.detectMediaType(r.mediaUrl, r.mediaType),
         });
-      }
+      });
       if (steps.length === 0) {
         return { success: false, count: 0, error: 'Tidak ada baris langkah tes ampli yang valid.' };
       }
@@ -1429,29 +1568,17 @@ step-amp-3,3,Pengukuran Tegangan DCO (DC Offset di Terminal Speaker),Kritis Spea
 
   // --- TAB 5: PENGETESAN SPEAKER ---
   public static getTestSpeakerTemplateCSV(): string {
-    return `ID,Nomor_Urut,Judul_Langkah,Metode_Uji,Prosedur_SOP,Respon_Normal,Gejala_Rusak,Tips_Teknisi,Media_URL
-step-spk-1,1,Inspeksi Fisik Membran Rubber Surround Spider & Dust Cap,Visual & Sentuhan,Periksa cone surround dan spider dari robek atau lapuk,Daun speaker utuh kaku spider merekat kuat di frame,Daun robek bergetar surround mengeras spider lepas,Gunakan lem khusus gasket hitam jika merekatkan surround,https://images.unsplash.com/photo-1545454675-3531b543be5d?w=600&auto=format&fit=crop
-step-spk-2,2,Pengukuran Hambatan Kumparan Spul (DCR - DC Resistance),Multimeter Digital Ohm,Tempelkan probe merah dan hitam ke terminal (+) dan (-) speaker,Speaker 8 Ohm terbaca 5.6Ω - 7.2Ω speaker 4 Ohm terbaca 2.8Ω - 3.6Ω,Terbaca 0.0 Ohm (short terbakar) atau OL tak terhingga (putus),Nilai DCR selalu sedikit lebih rendah dari impedansi nominal AC,https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop
-step-spk-3,3,Uji Gerak Bebas & Polaritas Baterai 1.5V (Battery Pop Test),Baterai AA 1.5V DC,Sentuhkan kutub positif baterai ke (+) dan negatif ke (-) secara sesaat,Bunyi POP mantap dan daun speaker bergerak MAJU simetris,Tidak ada bunyi (putus) atau gerakan seret tidak mau maju,Jika daun bergerak mundur saat kutub positif menyentuh merah polaritas terbalik,https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&auto=format&fit=crop`;
+    return `ID,Nomor_Urut,Judul_Langkah,Metode_Uji,Prosedur_SOP,Respon_Normal,Gejala_Rusak,Tips_Teknisi,Media_URL,Tipe_Media
+step-spk-contoh-1,1,Judul langkah pengetesan speaker (contoh),Visual & Sentuhan,Prosedur yang dilakukan,Respon saat normal,Gejala saat rusak,Tips teknisi,,image`;
   }
 
   public static exportTestSpeakerCSV(): string {
     const list = this.getTestSpeakerList();
-    const header = 'ID,Nomor_Urut,Judul_Langkah,Metode_Uji,Prosedur_SOP,Respon_Normal,Gejala_Rusak,Tips_Teknisi,Media_URL';
-    const rows = list.map(s => {
-      const escape = (val: string) => `"${(val ?? '').toString().replace(/"/g, '""')}"`;
-      return [
-        escape(s.id),
-        escape(s.num.toString()),
-        escape(s.title),
-        escape(s.method),
-        escape(s.sop),
-        escape(s.normal),
-        escape(s.defect),
-        escape(s.tip),
-        escape(s.mediaUrl || '')
-      ].join(',');
-    });
+    const header = 'ID,Nomor_Urut,Judul_Langkah,Metode_Uji,Prosedur_SOP,Respon_Normal,Gejala_Rusak,Tips_Teknisi,Media_URL,Tipe_Media';
+    const rows = list.map((s) =>
+      [s.id, String(s.num), s.title, s.method, s.sop, s.normal, s.defect, s.tip, s.mediaUrl || '', s.mediaType || 'image']
+        .map((v) => this.csvCell(v)).join(',')
+    );
     return [header, ...rows].join('\n');
   }
 
@@ -1461,25 +1588,26 @@ step-spk-3,3,Uji Gerak Bebas & Polaritas Baterai 1.5V (Battery Pop Test),Baterai
       if (rows.length < 2) {
         return { success: false, count: 0, error: 'Data kosong atau minimal harus memiliki baris header dan 1 baris data.' };
       }
-      const startIndex = rows[0][2]?.toLowerCase().includes('judul') || rows[0][0]?.toLowerCase().includes('id') ? 1 : 0;
+      const { records } = this.readTable(rows, this.ALIAS.tesSpeaker, [
+        'id', 'num', 'title', 'method', 'sop', 'normal', 'defect', 'tip', 'mediaUrl', 'mediaType',
+      ]);
+      const used = new Set<string>();
       const steps: TesSpeakerItem[] = [];
-      for (let i = startIndex; i < rows.length; i++) {
-        const r = rows[i];
-        const title = String(r[2] || r[1] || r[0]).trim();
-        if (!title) continue;
+      records.forEach((r, i) => {
+        if (!r.title) return;
         steps.push({
-          id: String(r[0] && r[0].startsWith('step-') ? r[0] : `step-spk-${Date.now()}-${i}`),
-          num: Number(r[1]) || (steps.length + 1),
-          title: title,
-          method: String(r[3] || ''),
-          sop: String(r[4] || ''),
-          normal: String(r[5] || ''),
-          defect: String(r[6] || ''),
-          tip: String(r[7] || ''),
-          mediaUrl: String(r[8] || '').trim(),
-          mediaType: String(r[8] || '').includes('youtu') ? 'video' : 'image'
+          id: this.importId('step-spk', r.id, i, used),
+          num: Number(r.num) || steps.length + 1,
+          title: r.title,
+          method: r.method,
+          sop: r.sop,
+          normal: r.normal,
+          defect: r.defect,
+          tip: r.tip,
+          mediaUrl: r.mediaUrl,
+          mediaType: this.detectMediaType(r.mediaUrl, r.mediaType),
         });
-      }
+      });
       if (steps.length === 0) {
         return { success: false, count: 0, error: 'Tidak ada baris langkah tes speaker yang valid.' };
       }

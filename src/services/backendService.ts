@@ -55,15 +55,15 @@ const SESSION_TOKEN_KEY = 'panduan_service_session_token';
 // ---------------------------------------------------------------------------
 // Low-level Apps Script API calls
 // ---------------------------------------------------------------------------
-async function apiGet(action: string, params: Record<string, string> = {}): Promise<any> {
+const REQUEST_TIMEOUT_MS = 60000;
+
+async function apiGet(action: string): Promise<any> {
   if (!APPS_SCRIPT_URL) throw new Error('Apps Script URL belum dikonfigurasi (VITE_APPS_SCRIPT_URL).');
   const url = new URL(APPS_SCRIPT_URL);
   url.searchParams.set('action', action);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-
   const res = await fetch(url.toString());
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || 'Permintaan gagal.');
+  const json = await readJson(res);
+  if (!json.ok) throw new ApiError(json.error || 'Permintaan gagal.', json.code);
   return json;
 }
 
@@ -72,14 +72,78 @@ async function apiPost(action: string, payload: Record<string, any> = {}): Promi
   // Content-Type text/plain keeps this a CORS "simple request" (no preflight
   // OPTIONS call), which Apps Script Web Apps don't handle. The Apps Script
   // side still parses the body as JSON regardless of the declared type.
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action, ...payload }),
-  });
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || 'Permintaan gagal.');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, ...payload }),
+      signal: controller.signal,
+    });
+  } catch (e: any) {
+    if (e?.name === 'AbortError') throw new ApiError('Server terlalu lama merespons. Coba lagi.');
+    throw new ApiError('Tidak bisa terhubung ke server. Periksa koneksi internet Anda.');
+  } finally {
+    clearTimeout(timer);
+  }
+  const json = await readJson(res);
+  if (!json.ok) {
+    if (json.code === 'invalid_session') {
+      clearToken();
+      sessionInvalidListeners.forEach((l) => l());
+    }
+    throw new ApiError(json.error || 'Permintaan gagal.', json.code);
+  }
   return json;
+}
+
+export class ApiError extends Error {
+  code?: string;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+  }
+}
+
+async function readJson(res: Response): Promise<any> {
+  try {
+    return await res.json();
+  } catch {
+    // Apps Script mengembalikan halaman HTML (bukan JSON) kalau URL salah,
+    // belum di-deploy ulang, atau aksesnya bukan "Anyone".
+    throw new ApiError(
+      'Server tidak membalas dengan benar. Pastikan Code.gs sudah di-deploy ulang (New version) dan akses "Anyone".'
+    );
+  }
+}
+
+// Dipanggil saat server menolak token (kedaluwarsa / dihapus) - App.tsx
+// memakai ini untuk otomatis kembali ke layar login.
+const sessionInvalidListeners = new Set<() => void>();
+export function subscribeToSessionInvalid(listener: () => void): () => void {
+  sessionInvalidListeners.add(listener);
+  return () => sessionInvalidListeners.delete(listener);
+}
+
+// Dipanggil saat menyimpan (tambah/ubah/hapus) ke spreadsheet GAGAL, supaya
+// UI bisa memberi tahu pengguna - bukan hanya item yang hilang diam-diam.
+export interface WriteErrorInfo {
+  sheet: string;
+  action: string;
+  message: string;
+}
+const writeErrorListeners = new Set<(info: WriteErrorInfo) => void>();
+export function subscribeToWriteErrors(listener: (info: WriteErrorInfo) => void): () => void {
+  writeErrorListeners.add(listener);
+  return () => writeErrorListeners.delete(listener);
+}
+function reportWriteError(sheet: string, action: string, e: unknown): void {
+  const message = e instanceof Error ? e.message : String(e);
+  console.error(`[backendService] Gagal ${action} di "${sheet}":`, e);
+  writeErrorListeners.forEach((l) => l({ sheet, action, message }));
 }
 
 // ---------------------------------------------------------------------------
@@ -184,6 +248,7 @@ export function subscribeToUsers(callback: (users: User[]) => void): () => void 
   let cancelled = false;
 
   async function poll() {
+    if (cancelled || (typeof document !== 'undefined' && document.hidden)) return;
     try {
       const token = getStoredToken();
       const json = await apiPost('listUsers', { token });
@@ -194,7 +259,7 @@ export function subscribeToUsers(callback: (users: User[]) => void): () => void 
   }
 
   poll();
-  const timer = setInterval(poll, 5000);
+  const timer = setInterval(poll, 10000);
   return () => {
     cancelled = true;
     clearInterval(timer);
@@ -237,6 +302,32 @@ export async function closeChatThread(threadId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Unggah foto / video ke Google Drive (lewat Apps Script)
+// Sel Google Sheets dibatasi 50.000 karakter, jadi yang disimpan di sel
+// hanya link-nya.
+// ---------------------------------------------------------------------------
+export async function uploadMediaToDrive(
+  file: Blob,
+  fileName: string
+): Promise<{ url: string; type: 'image' | 'video' }> {
+  const dataUrl: string = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Gagal membaca file.'));
+    reader.readAsDataURL(file);
+  });
+  const base64 = dataUrl.split(',')[1] || '';
+  const token = getStoredToken();
+  const json = await apiPost('uploadMedia', {
+    token,
+    fileName,
+    mimeType: file.type,
+    dataBase64: base64,
+  });
+  return { url: json.url, type: json.type };
+}
+
+// ---------------------------------------------------------------------------
 // Generic polling-based collection store (mirrors a single Sheet tab)
 // ---------------------------------------------------------------------------
 type Listener = () => void;
@@ -245,44 +336,40 @@ function createCollectionStore<T extends { id: string }>(sheetName: string) {
   let cache: T[] = [];
   let ready = false;
   let lastError: string | null = null;
+  // Selama ada penyimpanan yang belum selesai, hasil polling tidak boleh
+  // menimpa cache (kalau tidak, item yang baru ditambah bisa sempat hilang).
+  let pendingWrites = 0;
+  let lastWriteError: string | null = null;
+  const idleWaiters: Array<() => void> = [];
   const listeners = new Set<Listener>();
-  let pollTimer: ReturnType<typeof setInterval> | null = null;
 
   function notify() {
     listeners.forEach((l) => l());
   }
 
-  async function fetchOnce() {
-    try {
-      const json = await apiGet('getAll', { sheet: sheetName });
-      cache = json.data;
-      ready = true;
-      lastError = null;
-      notify();
-    } catch (e) {
-      console.error(`[backendService] Gagal memuat "${sheetName}":`, e);
-      lastError = e instanceof Error ? e.message : String(e);
-      // Mark ready anyway so one broken/unrecognized sheet doesn't block the
-      // whole app forever on the loading screen - this collection just
-      // stays empty (and keeps retrying on the next poll) instead.
-      ready = true;
-      notify();
-    }
+  /** Dipanggil poller pusat dengan isi terbaru tab ini. */
+  function applyData(rows: T[]) {
+    lastError = null;
+    ready = true;
+    if (pendingWrites === 0) cache = rows;
+    notify();
   }
 
-  function start() {
-    if (pollTimer) return;
-    fetchOnce();
-    pollTimer = setInterval(fetchOnce, POLL_INTERVAL_MS);
+  /** Dipanggil poller pusat bila tab ini gagal dimuat. */
+  function applyError(message: string) {
+    lastError = message;
+    // Tetap ditandai siap supaya satu tab yang bermasalah tidak membuat
+    // seluruh aplikasi macet di layar loading (tab itu kosong dan dicoba lagi
+    // di polling berikutnya).
+    ready = true;
+    notify();
   }
 
-  function stop() {
-    if (pollTimer) {
-      clearInterval(pollTimer);
-      pollTimer = null;
-    }
+  function reset() {
     ready = false;
     cache = [];
+    lastError = null;
+    pendingWrites = 0;
   }
 
   function subscribe(listener: Listener): () => void {
@@ -302,73 +389,149 @@ function createCollectionStore<T extends { id: string }>(sheetName: string) {
     return lastError;
   }
 
-  /** Force an immediate refresh regardless of the polling timer. */
+  /** Pesan error penyimpanan terakhir (null bila penyimpanan terakhir berhasil). */
+  function getLastWriteError(): string | null {
+    return lastWriteError;
+  }
+
+  /** Selesai (resolve) begitu semua penyimpanan yang sedang berjalan tuntas. */
+  function whenIdle(): Promise<void> {
+    if (pendingWrites === 0) return Promise.resolve();
+    return new Promise<void>((resolve) => idleWaiters.push(resolve));
+  }
+
+  /** Force an immediate refresh of this collection regardless of the timer. */
   async function refresh(): Promise<void> {
-    await fetchOnce();
+    await pollSheets([sheetName]);
+  }
+
+  async function runWrite<R>(action: string, work: () => Promise<R>, rollback: () => void): Promise<R> {
+    pendingWrites++;
+    lastWriteError = null;
+    try {
+      return await work();
+    } catch (e) {
+      rollback();
+      notify();
+      lastWriteError = e instanceof Error ? e.message : String(e);
+      reportWriteError(sheetName, action, e);
+      throw e;
+    } finally {
+      pendingWrites--;
+      if (pendingWrites === 0) idleWaiters.splice(0).forEach((resolve) => resolve());
+    }
   }
 
   async function add(item: Omit<T, 'id'> & { id?: string }): Promise<T> {
     const tempId = item.id || `temp-${Date.now()}`;
     const optimisticItem = { ...(item as any), id: tempId } as T;
-    cache = [optimisticItem, ...cache];
+    cache = [...cache, optimisticItem];
     notify();
 
-    try {
-      const token = getStoredToken();
-      const json = await apiPost('add', { token, sheet: sheetName, payload: item });
-      cache = cache.map((i) => (i.id === tempId ? json.data : i));
-      notify();
-      return json.data;
-    } catch (e) {
-      cache = cache.filter((i) => i.id !== tempId);
-      notify();
-      throw e;
-    }
+    return runWrite(
+      'menambah data',
+      async () => {
+        const token = getStoredToken();
+        const json = await apiPost('add', { token, sheet: sheetName, payload: { ...(item as any), id: tempId } });
+        cache = cache.map((i) => (i.id === tempId ? json.data : i));
+        notify();
+        return json.data as T;
+      },
+      () => {
+        cache = cache.filter((i) => i.id !== tempId);
+      }
+    );
+  }
+
+  /** Tambah banyak item sekaligus dalam SATU permintaan ke server. */
+  async function addMany(items: T[]): Promise<void> {
+    if (items.length === 0) return;
+    const ids = new Set(items.map((i) => i.id));
+    cache = [...cache, ...items];
+    notify();
+
+    await runWrite(
+      'menambah banyak data',
+      async () => {
+        const token = getStoredToken();
+        const json = await apiPost('addMany', { token, sheet: sheetName, items });
+        const saved: T[] = json.data || items;
+        const byId = new Map(saved.map((i) => [i.id, i]));
+        cache = cache.map((i) => (ids.has(i.id) ? byId.get(i.id) || i : i));
+        notify();
+      },
+      () => {
+        cache = cache.filter((i) => !ids.has(i.id));
+      }
+    );
   }
 
   async function update(item: T): Promise<void> {
     const previous = cache;
     cache = cache.map((i) => (i.id === item.id ? item : i));
     notify();
-    try {
-      const token = getStoredToken();
-      await apiPost('update', { token, sheet: sheetName, payload: item });
-    } catch (e) {
-      cache = previous;
-      notify();
-      throw e;
-    }
+    await runWrite(
+      'mengubah data',
+      async () => {
+        const token = getStoredToken();
+        await apiPost('update', { token, sheet: sheetName, payload: item });
+      },
+      () => {
+        cache = previous;
+      }
+    );
   }
 
   async function remove(id: string): Promise<void> {
     const previous = cache;
     cache = cache.filter((i) => i.id !== id);
     notify();
-    try {
-      const token = getStoredToken();
-      await apiPost('delete', { token, sheet: sheetName, id });
-    } catch (e) {
-      cache = previous;
-      notify();
-      throw e;
-    }
+    await runWrite(
+      'menghapus data',
+      async () => {
+        const token = getStoredToken();
+        await apiPost('delete', { token, sheet: sheetName, id });
+      },
+      () => {
+        cache = previous;
+      }
+    );
   }
 
   async function replaceAll(items: T[]): Promise<void> {
     const previous = cache;
     cache = items;
     notify();
-    try {
-      const token = getStoredToken();
-      await apiPost('replaceAll', { token, sheet: sheetName, items });
-    } catch (e) {
-      cache = previous;
-      notify();
-      throw e;
-    }
+    await runWrite(
+      'mengganti seluruh data',
+      async () => {
+        const token = getStoredToken();
+        await apiPost('replaceAll', { token, sheet: sheetName, items });
+      },
+      () => {
+        cache = previous;
+      }
+    );
   }
 
-  return { start, stop, subscribe, getAll, isReady, getLastError, refresh, add, update, remove, replaceAll, sheetName };
+  return {
+    subscribe,
+    getAll,
+    isReady,
+    getLastError,
+    getLastWriteError,
+    whenIdle,
+    refresh,
+    add,
+    addMany,
+    update,
+    remove,
+    replaceAll,
+    sheetName,
+    applyData,
+    applyError,
+    reset,
+  };
 }
 
 export const toolsStore = createCollectionStore<ToolItem>('Alat_Kerja');
@@ -399,12 +562,62 @@ const allStores = [
   chatMessagesStore,
 ];
 
+// ---------------------------------------------------------------------------
+// Poller pusat: SATU permintaan (getBatch) untuk semua tab, bukan 12
+// permintaan terpisah - jauh lebih ringan bagi Apps Script, dan berhenti
+// sendiri saat tab browser sedang tidak dilihat.
+// ---------------------------------------------------------------------------
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+let visibilityHandlerAttached = false;
+
+async function pollSheets(names: string[]): Promise<void> {
+  const token = getStoredToken();
+  if (!token) return;
+  const targets = allStores.filter((s) => names.includes(s.sheetName));
+  try {
+    const json = await apiPost('getBatch', { token, sheets: names });
+    targets.forEach((store) => {
+      const entry = json.data?.[store.sheetName];
+      if (!entry) {
+        store.applyError('Server tidak mengirim data untuk tab ini.');
+      } else if (entry.error) {
+        console.error(`[backendService] Gagal memuat "${store.sheetName}":`, entry.error);
+        store.applyError(entry.error);
+      } else {
+        store.applyData(entry.data || []);
+      }
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error('[backendService] Gagal memuat data:', e);
+    targets.forEach((store) => store.applyError(message));
+  }
+}
+
+function pollAllIfVisible() {
+  if (typeof document !== 'undefined' && document.hidden) return;
+  void pollSheets(allStores.map((s) => s.sheetName));
+}
+
 export function startAllStores(): void {
-  allStores.forEach((s) => s.start());
+  if (pollTimer) return;
+  void pollSheets(allStores.map((s) => s.sheetName));
+  pollTimer = setInterval(pollAllIfVisible, POLL_INTERVAL_MS);
+  if (typeof document !== 'undefined' && !visibilityHandlerAttached) {
+    visibilityHandlerAttached = true;
+    // Begitu pengguna kembali melihat aplikasi, langsung segarkan data.
+    document.addEventListener('visibilitychange', () => {
+      if (pollTimer && !document.hidden) pollAllIfVisible();
+    });
+  }
 }
 
 export function stopAllStores(): void {
-  allStores.forEach((s) => s.stop());
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+  allStores.forEach((s) => s.reset());
 }
 
 export function subscribeToAnyDataChange(listener: Listener): () => void {
@@ -425,7 +638,7 @@ export function getStoreErrors(): { sheet: string; error: string }[] {
 
 /** Force every collection to refetch right now (e.g. a "Sync Now" button). */
 export async function refreshAllStoresNow(): Promise<void> {
-  await Promise.all(allStores.map((s) => s.refresh()));
+  await pollSheets(allStores.map((s) => s.sheetName));
 }
 
 /** Simple connectivity check against the deployed Apps Script Web App. */

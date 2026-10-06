@@ -158,9 +158,9 @@ export const UserManagementPanel: React.FC<UserManagementPanelProps> = ({
                   </div>
 
                   <span
-                    className={`shrink-0 px-2.5 py-1 rounded-lg border text-[11px] font-semibold ${ACCESS_STYLE[u.accessType]}`}
+                    className={`shrink-0 px-2.5 py-1 rounded-lg border text-[11px] font-semibold ${u.accessExpired ? ACCESS_STYLE.none : ACCESS_STYLE[u.accessType]}`}
                   >
-                    {ACCESS_LABEL[u.accessType]}
+                    {u.accessExpired ? '6 Bulan (Kedaluwarsa)' : ACCESS_LABEL[u.accessType]}
                   </span>
 
                   <div className="flex items-center gap-1.5 shrink-0">

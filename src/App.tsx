@@ -37,6 +37,8 @@ import {
   allStoresReady,
   subscribeToAnyDataChange,
   isBackendConfigured,
+  subscribeToWriteErrors,
+  subscribeToSessionInvalid,
 } from './services/backendService';
 import { Users as UsersIcon } from 'lucide-react';
 
@@ -59,6 +61,7 @@ export default function App() {
   const [isDataReady, setIsDataReady] = useState<boolean>(false);
   const [storeErrors, setStoreErrors] = useState<{ sheet: string; error: string }[]>([]);
   const [dismissedErrorBanner, setDismissedErrorBanner] = useState<boolean>(false);
+  const [writeErrorMsg, setWriteErrorMsg] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState<boolean>(false);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState<boolean>(false);
@@ -77,7 +80,7 @@ export default function App() {
     'alat' | 'ampli' | 'komponen-rusak-bagus' | 'tes-ampli' | 'tes-speaker'
   >('komponen-rusak-bagus');
 
-  // Single source of truth for "who is logged in". Unlike Firebase, this
+  // Single source of truth for "who is logged in". This
   // backend has no push-based session listener, so we validate the token
   // saved on this device once on mount, and AuthScreen calls
   // handleAuthSuccess directly right after a successful register/login.
@@ -110,6 +113,46 @@ export default function App() {
     const unsub = subscribeToAnyDataChange(checkStatus);
     return unsub;
   }, [currentUser]);
+
+  // Penyimpanan ke spreadsheet gagal (mis. sel terlalu panjang, sesi habis,
+  // koneksi putus) -> beri tahu pengguna, jangan biarkan item hilang diam-diam.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsub = subscribeToWriteErrors((info) => {
+      setWriteErrorMsg(`Gagal ${info.action} di "${info.sheet}": ${info.message}`);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setWriteErrorMsg(null), 12000);
+    });
+    return () => {
+      unsub();
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
+  // Server menolak token (kedaluwarsa / sudah dihapus) -> kembali ke layar login.
+  useEffect(() => {
+    return subscribeToSessionInvalid(() => {
+      stopAllStores();
+      setIsDataReady(false);
+      setCurrentUser(null);
+      setActiveView('main');
+      setIsIntroModalOpen(false);
+    });
+  }, []);
+
+  // Segarkan status akun secara berkala supaya perubahan dari admin (disetujui,
+  // level akses, token, masa berlaku 6 bulan habis) berlaku tanpa muat ulang.
+  useEffect(() => {
+    if (!currentUser) return;
+    const everyMs = currentUser.accessType === 'none' ? 15000 : 60000;
+    const timer = setInterval(async () => {
+      if (document.hidden) return;
+      const fresh = await validateSession();
+      if (!fresh) return;
+      setCurrentUser((prev) => (prev && JSON.stringify(prev) === JSON.stringify(fresh) ? prev : fresh));
+    }, everyMs);
+    return () => clearInterval(timer);
+  }, [currentUser?.id, currentUser?.accessType]);
 
   const handleAuthSuccess = (user: User) => {
     setCurrentUser(user);
@@ -207,7 +250,7 @@ export default function App() {
     );
   }
 
-  // Data hasn't loaded from Firestore yet - avoid flashing empty tabs.
+  // Data hasn't loaded from the spreadsheet yet - avoid flashing empty tabs.
   if (!isDataReady) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-3">
@@ -222,6 +265,23 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      {/* PESAN GAGAL SIMPAN KE SPREADSHEET */}
+      {writeErrorMsg && (
+        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-1.5rem)] max-w-xl">
+          <div className="p-3 rounded-xl bg-rose-950/95 border border-rose-700 text-rose-100 text-xs sm:text-sm flex items-start gap-2 shadow-2xl">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+            <p className="flex-1">{writeErrorMsg}</p>
+            <button
+              type="button"
+              onClick={() => setWriteErrorMsg(null)}
+              className="p-0.5 rounded text-rose-300 hover:text-white"
+              aria-label="Tutup"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
       {/* TOP BAR / HEADER */}
       <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">

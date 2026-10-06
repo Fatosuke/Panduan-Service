@@ -161,7 +161,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
   const [pasteServiceLogText, setPasteServiceLogText] = useState('');
   const [showPasteServiceLog, setShowPasteServiceLog] = useState(false);
 
-  // Keep every list above in sync with Firestore in real time, so edits
+  // Keep every list above in sync with the spreadsheet, so edits
   // made from another device (or by this same admin a moment ago) always
   // show up here without needing to close/reopen the modal.
   useEffect(() => {
@@ -256,7 +256,9 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
     setIsSyncing(true);
     setSyncStatus('Mengimpor data dari URL CSV...');
     try {
-      const res = await SpreadsheetService.syncFromSheetUrl(sheetUrl.trim());
+      const res = await SpreadsheetService.syncFromSheetUrl(sheetUrl.trim(), (label) =>
+        window.confirm(`Terdeteksi tabel: ${label}.\n\nImpor ini akan MENGGANTI seluruh isi tab tersebut (salinan isi lama otomatis disimpan di tab tersembunyi "_bak_..." pada Google Sheet). Lanjutkan?`)
+      );
       if (res.success) {
         setToolsList(SpreadsheetService.getToolsList());
         setAmpliList(SpreadsheetService.getAmpliList());
@@ -286,6 +288,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
       return;
     }
     if (!pasteToolsText.trim()) return;
+    if (!window.confirm('Impor ini akan MENGGANTI seluruh isi tab ini dengan data yang Anda tempel. Salinan isi lama otomatis disimpan di tab tersembunyi "_bak_..." pada Google Sheet. Lanjutkan?')) return;
     const res = SpreadsheetService.importToolsText(pasteToolsText);
     if (res.success) {
       setToolsList(SpreadsheetService.getToolsList());
@@ -316,6 +319,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
       return;
     }
     if (!pasteAmpliText.trim()) return;
+    if (!window.confirm('Impor ini akan MENGGANTI seluruh isi tab ini dengan data yang Anda tempel. Salinan isi lama otomatis disimpan di tab tersembunyi "_bak_..." pada Google Sheet. Lanjutkan?')) return;
     const res = SpreadsheetService.importAmpliText(pasteAmpliText);
     if (res.success) {
       setAmpliList(SpreadsheetService.getAmpliList());
@@ -346,6 +350,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
       return;
     }
     if (!pasteTestAmpliText.trim()) return;
+    if (!window.confirm('Impor ini akan MENGGANTI seluruh isi tab ini dengan data yang Anda tempel. Salinan isi lama otomatis disimpan di tab tersembunyi "_bak_..." pada Google Sheet. Lanjutkan?')) return;
     const res = SpreadsheetService.importTestAmpliText(pasteTestAmpliText);
     if (res.success) {
       setTestAmpliList(SpreadsheetService.getTestAmpliList());
@@ -376,6 +381,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
       return;
     }
     if (!pasteTestSpeakerText.trim()) return;
+    if (!window.confirm('Impor ini akan MENGGANTI seluruh isi tab ini dengan data yang Anda tempel. Salinan isi lama otomatis disimpan di tab tersembunyi "_bak_..." pada Google Sheet. Lanjutkan?')) return;
     const res = SpreadsheetService.importTestSpeakerText(pasteTestSpeakerText);
     if (res.success) {
       setTestSpeakerList(SpreadsheetService.getTestSpeakerList());
@@ -441,6 +447,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
       return;
     }
     if (!pasteWhitelistText.trim()) return;
+    if (!window.confirm('Impor ini akan MENGGANTI seluruh isi tab ini dengan data yang Anda tempel. Salinan isi lama otomatis disimpan di tab tersembunyi "_bak_..." pada Google Sheet. Lanjutkan?')) return;
     const res = SpreadsheetService.importWhitelistText(pasteWhitelistText);
     if (res.success) {
       setWhitelist(SpreadsheetService.getWhitelist());
@@ -535,6 +542,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
       return;
     }
     if (!pasteMediaText.trim()) return;
+    if (!window.confirm('Impor ini akan MENGGANTI seluruh isi tab ini dengan data yang Anda tempel. Salinan isi lama otomatis disimpan di tab tersembunyi "_bak_..." pada Google Sheet. Lanjutkan?')) return;
     const res = SpreadsheetService.importMediaText(pasteMediaText);
     if (res.success) {
       setMediaGuides(SpreadsheetService.getMediaGuides());
@@ -678,6 +686,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
       return;
     }
     if (!pasteDiagnosisText.trim()) return;
+    if (!window.confirm('Impor ini akan MENGGANTI seluruh isi tab ini dengan data yang Anda tempel. Salinan isi lama otomatis disimpan di tab tersembunyi "_bak_..." pada Google Sheet. Lanjutkan?')) return;
     const res = SpreadsheetService.importAnalysisText(pasteDiagnosisText);
     if (res.success) {
       const records = SpreadsheetService.getAnalysisRecords();
@@ -754,6 +763,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
       return;
     }
     if (!pasteStaffText.trim()) return;
+    if (!window.confirm('Impor ini akan MENGGANTI seluruh isi tab ini dengan data yang Anda tempel. Salinan isi lama otomatis disimpan di tab tersembunyi "_bak_..." pada Google Sheet. Lanjutkan?')) return;
     const res = SpreadsheetService.importStaffText(pasteStaffText);
     if (res.success) {
       setStaffList(SpreadsheetService.getStaffContacts());
@@ -1159,7 +1169,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                   <span>5 Tab Utama Panduan Teknisi Audio (Dapat Diedit Langsung di Spreadsheet)</span>
                 </div>
                 <p className="text-slate-400 text-xs mt-1">
-                  Format tabel ini sinkron 1:1 dengan aplikasi web dan Google Spreadsheet Anda.
+                  Urutan kolom di bawah sama dengan tab di Google Spreadsheet Anda. Saat impor, kolom dikenali dari nama header.
                 </p>
               </div>
 
@@ -1240,9 +1250,9 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                     <span className="text-xs px-2 py-0.5 rounded bg-blue-900/60 text-blue-300 font-bold border border-blue-700 uppercase">
                       Sheet: Tipe_Ampli (Tab 2)
                     </span>
-                    <h5 className="font-bold text-white text-sm mt-1">Katalog &amp; Arsitektur Tipe Power Amplifier</h5>
+                    <h5 className="font-bold text-white text-sm mt-1">Katalog Produk TOA (Ampli, Speaker, Mikrofon, dll.)</h5>
                     <p className="text-xs text-slate-400">
-                      Kolom: ID, Nama_Ampli, Kelas_Topologi, Daya_RMS, Tegangan_PSU, Semikonduktor_Utama, Deskripsi, Karakteristik, Titik_Rawan, Tips_Teknisi, Media_URL, Tipe_Media
+                      Kolom: ID, Nama_Ampli, Kategori_Produk, Daya_RMS, Tegangan_PSU, Deskripsi, Karakteristik, Titik_Rawan, Tips_Teknisi, Semikonduktor_Utama, Media_URL, Tipe_Media
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -1275,7 +1285,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                       <tr>
                         <th className="p-2.5">ID</th>
                         <th className="p-2.5">Nama_Ampli</th>
-                        <th className="p-2.5">Kelas_Topologi</th>
+                        <th className="p-2.5">Kategori_Produk</th>
                         <th className="p-2.5">Daya_RMS</th>
                         <th className="p-2.5">Tegangan_PSU</th>
                         <th className="p-2.5">Semikonduktor_Utama</th>
@@ -1283,20 +1293,12 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-slate-300 font-mono text-[11px]">
                       <tr>
-                        <td className="p-2 text-blue-400">ampli-apex-b500</td>
-                        <td className="p-2 text-white font-sans font-bold">Apex B500 Standard</td>
-                        <td className="p-2">Kelas AB</td>
-                        <td className="p-2">500W RMS @ 4Ω</td>
-                        <td className="p-2 font-sans">±65VDC s/d ±85VDC CT</td>
-                        <td className="p-2 font-sans">2SC5200 / 2SA1943 (4-6 set)</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-blue-400">ampli-d900-d2k</td>
-                        <td className="p-2 text-white font-sans font-bold">Class D D900 / D2K SMPS</td>
-                        <td className="p-2">Kelas D</td>
-                        <td className="p-2">900W - 2000W RMS</td>
-                        <td className="p-2 font-sans">±75VDC s/d ±90VDC CT</td>
-                        <td className="p-2 font-sans">IRFP4227 Mosfet + IR2110 Driver</td>
+                        <td className="p-2 text-blue-400">amp-contoh-1</td>
+                        <td className="p-2 text-white font-sans font-bold">ZA-2240 (contoh)</td>
+                        <td className="p-2">Amplifier Low Impedance</td>
+                        <td className="p-2">(isi daya RMS unit)</td>
+                        <td className="p-2 font-sans">(isi tegangan kerja)</td>
+                        <td className="p-2 font-sans">(isi semikonduktor utama)</td>
                       </tr>
                     </tbody>
                   </table>
@@ -1312,7 +1314,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                     </span>
                     <h5 className="font-bold text-white text-sm mt-1">Video &amp; Gambar Pengujian Komponen Rusak vs Bagus</h5>
                     <p className="text-xs text-slate-400">
-                      Kolom: ID, Judul_Komponen, Tipe_Media, URL_Media, Nama_Komponen, Gejala_Normal, Gejala_Rusak, Metode_Pengujian, Nilai_Normal, Nilai_Rusak
+                      Kolom: ID, Judul_Komponen, Tipe_Media, URL_Media, Keterangan, Nama_Komponen, Gejala_Normal, Gejala_Rusak, Metode_Pengujian, Nilai_Normal, Nilai_Rusak
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -1374,7 +1376,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                     </span>
                     <h5 className="font-bold text-white text-sm mt-1">SOP &amp; Prosedur Pengetesan Amplifier</h5>
                     <p className="text-xs text-slate-400">
-                      Kolom: ID, Nomor_Urut, Judul_Langkah, Kategori_Tag, Tindakan_SOP, Target_Normal, Tanda_Kerusakan, Tips_Proteksi, Media_URL
+                      Kolom: ID, Nomor_Urut, Judul_Langkah, Kategori_Tag, Tindakan_SOP, Target_Normal, Tanda_Kerusakan, Tips_Proteksi, Media_URL, Tipe_Media
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -1444,7 +1446,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                     </span>
                     <h5 className="font-bold text-white text-sm mt-1">SOP &amp; Prosedur Pengetesan Speaker</h5>
                     <p className="text-xs text-slate-400">
-                      Kolom: ID, Nomor_Urut, Judul_Langkah, Metode_Uji, Prosedur_SOP, Respon_Normal, Gejala_Rusak, Tips_Teknisi, Media_URL
+                      Kolom: ID, Nomor_Urut, Judul_Langkah, Metode_Uji, Prosedur_SOP, Respon_Normal, Gejala_Rusak, Tips_Teknisi, Media_URL, Tipe_Media
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -2102,7 +2104,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                     rows={4}
                     value={pasteAmpliText}
                     onChange={(e) => setPasteAmpliText(e.target.value)}
-                    placeholder="ID,Nama_Ampli,Kelas_Topologi,Daya_RMS,Tegangan_PSU,Semikonduktor_Utama,Deskripsi,Karakteristik,Titik_Rawan,Tips_Teknisi,Media_URL,Tipe_Media&#10;ampli-socl-504,SOCL 504 Super OCL,Kelas AB,500W RMS @ 4Ω,±45VDC - ±65VDC CT,2SC5200 / 2SA1943,Power amplifier sejuta umat,Suara bass empuk | Karakter low sub,Bias tidak seimbang | DCO bocor,Set trimpot DCO ke 0.00V,https://...,image"
+                    placeholder="ID,Nama_Ampli,Kategori_Produk,Daya_RMS,Tegangan_PSU,Deskripsi,Karakteristik,Titik_Rawan,Tips_Teknisi,Semikonduktor_Utama,Media_URL,Tipe_Media&#10;amp-contoh-1,ZA-2240 (contoh),Amplifier Low Impedance,(daya RMS),(tegangan kerja),Deskripsi singkat,Karakteristik 1 | Karakteristik 2,Titik rawan 1 | Titik rawan 2,Tips teknisi,(semikonduktor utama),https://...,image"
                     className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white font-mono text-xs focus:outline-none focus:border-blue-500"
                   />
                   <div className="flex justify-end gap-2">
@@ -3721,7 +3723,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
         {/* Modal Footer with Clear Back Actions */}
         <div className="p-3 sm:p-4 border-t border-slate-800 bg-slate-950 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-[11px] text-slate-400 hidden sm:block">
-            Data tersimpan secara otomatis dan aman di browser Anda.
+            Semua perubahan disimpan langsung ke Google Spreadsheet Anda.
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             {activeTab !== 'templates' && (

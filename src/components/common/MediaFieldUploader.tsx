@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { uploadMediaToDrive, isBackendConfigured } from '../../services/backendService';
 import { 
   UploadCloud, 
   Camera, 
@@ -27,7 +28,7 @@ interface MediaFieldUploaderProps {
  * Menghasilkan file sangat jernih tapi ringan (~20KB - 40KB Base64),
  * aman untuk memori browser, localStorage, dan cell Google Spreadsheet (maks 50rb karakter).
  */
-const compressImage = (file: File): Promise<string> => {
+const compressImage = (file: File, maxDim = 800, quality = 0.72): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -36,8 +37,8 @@ const compressImage = (file: File): Promise<string> => {
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800;
-        const MAX_HEIGHT = 800;
+        const MAX_WIDTH = maxDim;
+        const MAX_HEIGHT = maxDim;
         let width = img.width;
         let height = img.height;
 
@@ -67,7 +68,7 @@ const compressImage = (file: File): Promise<string> => {
         ctx.drawImage(img, 0, 0, width, height);
 
         // Export ke JPEG terkompresi
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
         resolve(compressedDataUrl);
       };
       img.onerror = () => {
@@ -76,6 +77,20 @@ const compressImage = (file: File): Promise<string> => {
     };
     reader.onerror = (err) => reject(err);
   });
+};
+
+
+// Batas aman satu sel Google Sheets = 50.000 karakter. Gambar hasil kompresi
+// yang lebih besar dari ini TIDAK boleh disimpan langsung di sel.
+const MAX_INLINE_CHARS = 45000;
+
+const dataUrlToBlob = (dataUrl: string): Blob => {
+  const [meta, b64] = dataUrl.split(',');
+  const mime = /data:([^;]+)/.exec(meta)?.[1] || 'image/jpeg';
+  const bin = atob(b64 || '');
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
 };
 
 export const MediaFieldUploader: React.FC<MediaFieldUploaderProps> = ({
@@ -136,36 +151,51 @@ export const MediaFieldUploader: React.FC<MediaFieldUploaderProps> = ({
     }
   }[accentColor];
 
-  // Handle file reading from upload
+  // Handle file reading from upload.
+  // - Foto kecil (<= ~45 rb karakter setelah kompresi) disimpan langsung di sel.
+  // - Foto/video yang lebih besar diunggah ke Google Drive (lewat Apps Script)
+  //   dan yang tersimpan di sel hanya link-nya.
   const handleProcessFile = async (file: File) => {
     setErrorMessage(null);
     setIsProcessing(true);
 
+    const driveHint =
+      'Alternatifnya, tempel link foto/video pada mode "Tempel Link". Untuk unggah langsung, admin perlu menjalankan fungsi authorizeDrive di Apps Script lalu deploy ulang.';
+
     try {
       if (file.type.startsWith('image/')) {
-        // Otomatis kompresi gambar
-        const compressed = await compressImage(file);
-        onChange(compressed, 'image');
+        let dataUrl = await compressImage(file);
+        if (dataUrl.length > MAX_INLINE_CHARS) {
+          // Coba perkecil dulu supaya muat di sel tanpa Drive.
+          dataUrl = await compressImage(file, 600, 0.55);
+        }
+        if (dataUrl.length <= MAX_INLINE_CHARS) {
+          onChange(dataUrl, 'image');
+        } else if (isBackendConfigured()) {
+          try {
+            const bigger = await compressImage(file, 1200, 0.8);
+            const up = await uploadMediaToDrive(dataUrlToBlob(bigger), file.name || 'foto');
+            onChange(up.url, 'image');
+          } catch (e: any) {
+            setErrorMessage(`Foto terlalu besar untuk disimpan di sel spreadsheet dan unggahan ke Google Drive gagal (${e?.message || 'tidak diketahui'}). ${driveHint}`);
+          }
+        } else {
+          setErrorMessage('Foto terlalu besar untuk disimpan di sel spreadsheet. Tempel link foto saja.');
+        }
       } else if (file.type.startsWith('video/')) {
-        // Pengecekan ukuran video
+        // Video tidak mungkin muat di satu sel -> selalu lewat Google Drive.
         if (file.size > 15 * 1024 * 1024) {
           setErrorMessage('Ukuran video melebihi 15MB. Disarankan merekam video singkat (10-30 detik) agar hemat memori.');
-          setIsProcessing(false);
-          return;
+        } else if (!isBackendConfigured()) {
+          setErrorMessage('Backend belum terhubung. Tempel link video (YouTube / Google Drive) saja.');
+        } else {
+          try {
+            const up = await uploadMediaToDrive(file, file.name || 'video');
+            onChange(up.url, 'video');
+          } catch (e: any) {
+            setErrorMessage(`Unggahan video ke Google Drive gagal (${e?.message || 'tidak diketahui'}). ${driveHint}`);
+          }
         }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const videoDataUrl = e.target?.result as string;
-          onChange(videoDataUrl, 'video');
-          setIsProcessing(false);
-        };
-        reader.onerror = () => {
-          setErrorMessage('Gagal memproses file video.');
-          setIsProcessing(false);
-        };
-        reader.readAsDataURL(file);
-        return;
       } else {
         setErrorMessage('Format file tidak didukung. Harap pilih gambar (JPG/PNG/WebP) atau video (MP4/WebM).');
       }
@@ -334,7 +364,9 @@ export const MediaFieldUploader: React.FC<MediaFieldUploaderProps> = ({
                   <p className="text-slate-300 text-[11px] truncate">
                     {mediaUrl.startsWith('data:') 
                       ? 'Media lokal berhasil tersimpan ke sistem web' 
-                      : mediaUrl}
+                      : mediaUrl.includes('drive.google.com')
+                        ? 'Tersimpan di Google Drive (folder "Panduan Service - Media")'
+                        : mediaUrl}
                   </p>
                 </div>
               </div>

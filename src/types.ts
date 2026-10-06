@@ -10,6 +10,7 @@ export interface User {
   accessExpiry?: string; // ISO date string for 6 months access
   registeredAt: string;
   askTokens?: number; // sisa jatah bertanya ke Pembina (untuk akun non-fulltime)
+  accessExpired?: boolean; // true bila akses 6 bulan sudah lewat (diisi server)
 }
 
 export interface WhitelistEntry {
@@ -172,4 +173,5 @@ export interface ServiceLogRecord {
   analisaKerusakan: string;
   komponenDiganti: string;
   createdAt: string;
+  ownerId?: string; // id akun pemilik catatan (diisi server)
 }

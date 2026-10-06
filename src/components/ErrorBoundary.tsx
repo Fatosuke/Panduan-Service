@@ -31,7 +31,15 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   public handleReset = () => {
-    localStorage.clear();
+    // Hapus cache aplikasi saja - token login tetap disimpan supaya pengguna
+    // tidak ikut keluar dari akunnya.
+    try {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith('panduan_service_') && !k.toLowerCase().includes('token'))
+        .forEach((k) => localStorage.removeItem(k));
+    } catch {
+      /* abaikan */
+    }
     window.location.reload();
   };
 

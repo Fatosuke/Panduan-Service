@@ -18,8 +18,7 @@ import { User } from '../types';
 interface AuthScreenProps {
   // Called right after a successful register/login with the account that
   // just signed in - App.tsx uses this to set the active session, since
-  // this backend has no push-based "auth state changed" listener like
-  // Firebase did.
+  // this backend has no push-based "auth state changed" listener.
   onAuthSuccess?: (user: User) => void;
 }
 
