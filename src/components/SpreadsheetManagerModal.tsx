@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { formatDateTimeID } from '../utils/formatDate';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
-import { APP_VERSION } from '../version';
+import { APP_BUILD } from '../version';
 import { 
   X, 
   ArrowLeft,
@@ -120,6 +120,8 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
   initialTab
 }) => {
   const canEdit = SpreadsheetService.canEditSpreadsheet(currentUser);
+  // Panel "Diagnosa Web" hanya ditampilkan untuk akun atas nama Vicky.
+  const showDiagnostics = /\bvicky\b/i.test(currentUser?.fullName || '');
   const [activeTab, setActiveTab] = useState<ManagerTab>(
     (initialTab as ManagerTab) || 'templates'
   );
@@ -1186,7 +1188,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
           {/* TAB 0: TEMPLATE & FORMAT SPREADSHEET */}
           {activeTab === 'templates' && (
             <div className="space-y-6">
-              <DiagnosticsPanel />
+              {showDiagnostics && <DiagnosticsPanel />}
               <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-800/60 text-xs sm:text-sm text-emerald-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <Sparkles className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
@@ -3704,7 +3706,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
         {/* Modal Footer with Clear Back Actions */}
         <div className="p-3 sm:p-4 border-t border-slate-800 bg-slate-950 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-[11px] text-slate-400 hidden sm:block">
-            Semua perubahan disimpan langsung ke Google Spreadsheet Anda. · Web {APP_VERSION}
+            Semua perubahan disimpan langsung ke Google Spreadsheet Anda. · Web {APP_BUILD}
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             {activeTab !== 'templates' && (

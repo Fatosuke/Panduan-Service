@@ -93,7 +93,7 @@ const MEDIA_FOLDER_NAME = 'Panduan Service - Media';
 const LOGIN_MAX_FAILS = 5;
 const LOGIN_LOCK_SECONDS = 600;
 
-// Penanda versi Code.gs. Web menampilkannya di Pusat Integrasi > Diagnosa,
+// Penanda versi Code.gs. Web menampilkannya di Pusat Integrasi > Diagnosa Web,
 // jadi kelihatan jelas apakah deployment sudah memakai Code.gs terbaru.
 const SCRIPT_VERSION = 'v14.3';
 

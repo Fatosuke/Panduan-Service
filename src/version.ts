@@ -1,2 +1,7 @@
-/** Penanda versi web. Tampil di Pusat Integrasi supaya jelas versi mana yang sedang tayang di Vercel. */
+/**
+ * APP_VERSION  = versi kompatibilitas dengan Code.gs (harus sama dengan SCRIPT_VERSION di Code.gs).
+ * APP_BUILD    = penanda build web; berubah setiap ada pembaruan tampilan, supaya jelas
+ *                build mana yang sedang tayang di Vercel.
+ */
 export const APP_VERSION = 'v14.3';
+export const APP_BUILD = 'v14.3b';

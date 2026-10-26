@@ -18,7 +18,7 @@
  *   spreadsheetService.ts barely had to change.
  * ---------------------------------------------------------------------------
  */
-import { APP_VERSION } from '../version';
+import { APP_VERSION, APP_BUILD } from '../version';
 import {
   User,
   AccessType,
@@ -697,7 +697,7 @@ export async function pingBackend(): Promise<void> {
 
 // ---------------------------------------------------------------------------
 // Diagnosa koneksi: memeriksa satu per satu dari web sampai Google Sheet dan
-// melaporkan di langkah mana yang bermasalah (dipakai panel "Diagnosa Koneksi"
+// melaporkan di langkah mana yang bermasalah (dipakai panel "Diagnosa Web"
 // di Pusat Integrasi). Tidak mengubah data apa pun.
 // ---------------------------------------------------------------------------
 export interface DiagnosticStep {
@@ -712,7 +712,7 @@ export async function runDiagnostics(): Promise<{ steps: DiagnosticStep[]; summa
     steps.push({ label, status, detail });
   const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-  add('Versi web yang tayang', 'ok', APP_VERSION);
+  add('Versi web yang tayang', 'ok', APP_BUILD);
 
   // 1. URL
   if (!APPS_SCRIPT_URL) {

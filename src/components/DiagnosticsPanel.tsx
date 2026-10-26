@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Stethoscope, CheckCircle2, XCircle, AlertTriangle, Loader2, Copy, Check } from 'lucide-react';
 import { runDiagnostics, DiagnosticStep } from '../services/backendService';
-import { APP_VERSION } from '../version';
+import { APP_BUILD } from '../version';
 
 /**
- * Panel "Diagnosa Koneksi": memeriksa dari web sampai Google Sheet dan
+ * Panel "Diagnosa Web": memeriksa dari web sampai Google Sheet dan
  * menunjukkan di langkah mana data tidak sinkron. Hasilnya bisa disalin.
  */
 export const DiagnosticsPanel: React.FC = () => {
@@ -32,7 +32,7 @@ export const DiagnosticsPanel: React.FC = () => {
     if (!steps) return;
     const icon = { ok: '[OK]  ', warn: '[CEK]  ', fail: '[GAGAL] ' } as const;
     const text =
-      `Diagnosa Panduan Service (web ${APP_VERSION}) - ${new Date().toISOString()}\n` +
+      `Diagnosa Web Panduan Service (${APP_BUILD}) - ${new Date().toISOString()}\n` +
       steps.map((s) => `${icon[s.status]}${s.label}: ${s.detail}`).join('\n') +
       `\n\nKESIMPULAN: ${summary}`;
     try {
@@ -50,10 +50,10 @@ export const DiagnosticsPanel: React.FC = () => {
         <div className="flex items-start gap-3">
           <Stethoscope className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
           <div>
-            <h4 className="font-bold text-white text-base">Diagnosa Koneksi</h4>
+            <h4 className="font-bold text-white text-base">Diagnosa Web</h4>
             <p className="text-slate-400">
               Cek apakah web, Apps Script, dan Google Sheet sudah sinkron. Tidak mengubah data apa pun.
-              <span className="ml-1 text-slate-500">Web {APP_VERSION}</span>
+              <span className="ml-1 text-slate-500">Web {APP_BUILD}</span>
             </p>
           </div>
         </div>

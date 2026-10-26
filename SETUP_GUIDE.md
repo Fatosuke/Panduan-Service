@@ -32,14 +32,14 @@ permintaan polling untuk semua tab (lebih ringan) dan berhenti saat tab browser 
 
 ---
 
-## Diagnosa otomatis (paling mudah)
+## Diagnosa Web (khusus akun Vicky)
 
-Buka web > **Spreadsheet Sync** (Pusat Integrasi) > tab **Template & Format Kolom** >
-klik **Jalankan Diagnosa**. Hasilnya menunjukkan langkah mana yang bermasalah
+Login dengan akun atas nama Vicky > **Spreadsheet Sync** (Pusat Integrasi) > tab
+**Template & Format Kolom** > klik **Jalankan Diagnosa** pada panel **Diagnosa Web**. Hasilnya menunjukkan langkah mana yang bermasalah
 (URL, versi Code.gs, login, jumlah baris tiap tab, isi di layar), lengkap dengan
 kesimpulan. Klik **Salin hasil** untuk mengirimkannya ke Claude.
-Versi web juga tampil di bagian bawah Pusat Integrasi ("Web v14.3") - kalau angkanya
-bukan v14.3, berarti Vercel belum memakai build terbaru.
+Versi web juga tampil di bagian bawah Pusat Integrasi ("Web v14.3b") - kalau angkanya
+bukan v14.3b, berarti Vercel belum memakai build terbaru.
 
 ---
 
