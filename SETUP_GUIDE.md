@@ -32,6 +32,32 @@ permintaan polling untuk semua tab (lebih ringan) dan berhenti saat tab browser 
 
 ---
 
+## Diagnosa otomatis (paling mudah)
+
+Buka web > **Spreadsheet Sync** (Pusat Integrasi) > tab **Template & Format Kolom** >
+klik **Jalankan Diagnosa**. Hasilnya menunjukkan langkah mana yang bermasalah
+(URL, versi Code.gs, login, jumlah baris tiap tab, isi di layar), lengkap dengan
+kesimpulan. Klik **Salin hasil** untuk mengirimkannya ke Claude.
+Versi web juga tampil di bagian bawah Pusat Integrasi ("Web v14.3") - kalau angkanya
+bukan v14.3, berarti Vercel belum memakai build terbaru.
+
+---
+
+## Cek cepat: apakah Code.gs baru sudah aktif?
+
+Buka di browser: `URL_APPS_SCRIPT_ANDA?action=getAll&sheet=Alat_Kerja`
+(URL ada di Vercel > Settings > Environment Variables > `VITE_APPS_SCRIPT_URL`).
+
+- Muncul daftar data -> yang aktif masih **Code.gs LAMA**. Tempel Code.gs baru, Save,
+  lalu **Deploy > Manage deployments > pensil > New version > Deploy**.
+- Muncul tulisan "Aksi GET tidak dikenal. Perbarui aplikasi web..." -> **Code.gs BARU sudah aktif**
+  (ini memang yang diinginkan; data tidak lagi terbuka tanpa login).
+
+Selama Code.gs masih lama, web v14 tetap memuat data dengan cara lama dan menampilkan
+banner merah "Server spreadsheet belum diperbarui".
+
+---
+
 # Panduan Setup - Google Sheets sebagai Database + Apps Script
 
 Arsitektur baru ini 100% gratis selamanya, tidak butuh kartu kredit, dan

@@ -18,6 +18,7 @@
  *   spreadsheetService.ts barely had to change.
  * ---------------------------------------------------------------------------
  */
+import { APP_VERSION } from '../version';
 import {
   User,
   AccessType,
@@ -57,10 +58,11 @@ const SESSION_TOKEN_KEY = 'panduan_service_session_token';
 // ---------------------------------------------------------------------------
 const REQUEST_TIMEOUT_MS = 60000;
 
-async function apiGet(action: string): Promise<any> {
+async function apiGet(action: string, params: Record<string, string> = {}): Promise<any> {
   if (!APPS_SCRIPT_URL) throw new Error('Apps Script URL belum dikonfigurasi (VITE_APPS_SCRIPT_URL).');
   const url = new URL(APPS_SCRIPT_URL);
   url.searchParams.set('action', action);
+  Object.keys(params).forEach((k) => url.searchParams.set(k, params[k]));
   const res = await fetch(url.toString());
   const json = await readJson(res);
   if (!json.ok) throw new ApiError(json.error || 'Permintaan gagal.', json.code);
@@ -93,6 +95,12 @@ async function apiPost(action: string, payload: Record<string, any> = {}): Promi
     if (json.code === 'invalid_session') {
       clearToken();
       sessionInvalidListeners.forEach((l) => l());
+    }
+    if (typeof json.error === 'string' && json.error.startsWith('Aksi POST tidak dikenal')) {
+      throw new ApiError(
+        'Code.gs di Apps Script masih versi lama. Tempel Code.gs terbaru, lalu Deploy > Manage deployments > New version.',
+        'server_outdated'
+      );
     }
     throw new ApiError(json.error || 'Permintaan gagal.', json.code);
   }
@@ -562,6 +570,10 @@ const allStores = [
   chatMessagesStore,
 ];
 
+function allStoresList() {
+  return allStores;
+}
+
 // ---------------------------------------------------------------------------
 // Poller pusat: SATU permintaan (getBatch) untuk semua tab, bukan 12
 // permintaan terpisah - jauh lebih ringan bagi Apps Script, dan berhenti
@@ -569,6 +581,27 @@ const allStores = [
 // ---------------------------------------------------------------------------
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let visibilityHandlerAttached = false;
+// true bila Code.gs di Apps Script masih versi lama (belum bisa getBatch).
+// Aplikasi tetap memuat data lewat cara lama supaya layar tidak kosong, dan
+// menampilkan peringatan agar Code.gs segera diperbarui.
+let serverOutdated = false;
+
+export function isServerOutdated(): boolean {
+  return serverOutdated;
+}
+
+async function pollSheetsLegacy(targets: ReturnType<typeof allStoresList>): Promise<void> {
+  await Promise.all(
+    targets.map(async (store) => {
+      try {
+        const json = await apiGet('getAll', { sheet: store.sheetName });
+        store.applyData(json.data || []);
+      } catch (e) {
+        store.applyError(e instanceof Error ? e.message : String(e));
+      }
+    })
+  );
+}
 
 async function pollSheets(names: string[]): Promise<void> {
   const token = getStoredToken();
@@ -576,6 +609,7 @@ async function pollSheets(names: string[]): Promise<void> {
   const targets = allStores.filter((s) => names.includes(s.sheetName));
   try {
     const json = await apiPost('getBatch', { token, sheets: names });
+    serverOutdated = false;
     targets.forEach((store) => {
       const entry = json.data?.[store.sheetName];
       if (!entry) {
@@ -588,6 +622,11 @@ async function pollSheets(names: string[]): Promise<void> {
       }
     });
   } catch (e) {
+    if (e instanceof ApiError && e.code === 'server_outdated') {
+      serverOutdated = true;
+      await pollSheetsLegacy(targets);
+      return;
+    }
     const message = e instanceof Error ? e.message : String(e);
     console.error('[backendService] Gagal memuat data:', e);
     targets.forEach((store) => store.applyError(message));
@@ -644,4 +683,133 @@ export async function refreshAllStoresNow(): Promise<void> {
 /** Simple connectivity check against the deployed Apps Script Web App. */
 export async function pingBackend(): Promise<void> {
   await apiGet('ping');
+  // Ping saja lolos di Code.gs versi lama juga, jadi cek juga apakah server
+  // sudah mengenal aksi baru (getBatch).
+  const token = getStoredToken();
+  if (!token) return;
+  try {
+    await apiPost('getBatch', { token, sheets: [] });
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'server_outdated') throw e;
+    // error lain (sesi habis, akun belum disetujui) bukan urusan ping
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Diagnosa koneksi: memeriksa satu per satu dari web sampai Google Sheet dan
+// melaporkan di langkah mana yang bermasalah (dipakai panel "Diagnosa Koneksi"
+// di Pusat Integrasi). Tidak mengubah data apa pun.
+// ---------------------------------------------------------------------------
+export interface DiagnosticStep {
+  label: string;
+  status: 'ok' | 'warn' | 'fail';
+  detail: string;
+}
+
+export async function runDiagnostics(): Promise<{ steps: DiagnosticStep[]; summary: string }> {
+  const steps: DiagnosticStep[] = [];
+  const add = (label: string, status: DiagnosticStep['status'], detail: string) =>
+    steps.push({ label, status, detail });
+  const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+  add('Versi web yang tayang', 'ok', APP_VERSION);
+
+  // 1. URL
+  if (!APPS_SCRIPT_URL) {
+    add('URL Apps Script (VITE_APPS_SCRIPT_URL)', 'fail', 'Kosong. Isi di Vercel > Settings > Environment Variables, lalu Redeploy.');
+    return { steps, summary: 'Web belum tahu alamat Apps Script. Isi VITE_APPS_SCRIPT_URL di Vercel lalu Redeploy.' };
+  }
+  const idMatch = /\/macros\/s\/([^/]+)/.exec(APPS_SCRIPT_URL);
+  const idShort = idMatch ? idMatch[1].slice(0, 12) + '…' + idMatch[1].slice(-4) : '(format URL tidak biasa)';
+  add('URL Apps Script', idMatch ? 'ok' : 'warn', `ID deployment: ${idShort}${APPS_SCRIPT_URL.endsWith('/exec') ? '' : ' (tidak berakhiran /exec)'}`);
+
+  // 2. ping + versi Code.gs
+  let serverVersion: string | null = null;
+  let pingOk = false;
+  try {
+    const json = await apiGet('ping');
+    pingOk = true;
+    serverVersion = json.version || null;
+    if (serverVersion) {
+      add('Code.gs di Apps Script', serverVersion === APP_VERSION ? 'ok' : 'warn', `Versi ${serverVersion}${serverVersion === APP_VERSION ? '' : ` (web ${APP_VERSION})`}`);
+    } else {
+      add('Code.gs di Apps Script', 'fail', 'Merespons, tapi TANPA penanda versi = masih Code.gs LAMA (belum di-deploy New version, atau yang dipakai deployment lain).');
+    }
+  } catch (e) {
+    add('Menghubungi Apps Script', 'fail', errText(e));
+  }
+  if (!pingOk) {
+    return {
+      steps,
+      summary: 'Apps Script tidak bisa dihubungi / tidak membalas dengan benar. Periksa URL di Vercel dan pengaturan akses deployment ("Siapa saja").',
+    };
+  }
+
+  // 3. login
+  const token = getStoredToken();
+  if (!token) {
+    add('Login', 'fail', 'Belum login.');
+    return { steps, summary: 'Belum login. Masuk dulu, lalu jalankan diagnosa lagi.' };
+  }
+  try {
+    const json = await apiPost('validateToken', { token });
+    if (json.valid) {
+      add('Sesi login', 'ok', `Akses: ${json.user.accessType}${json.user.accessExpired ? ' (masa berlaku 6 bulan SUDAH habis)' : ''}`);
+    } else {
+      add('Sesi login', 'fail', 'Token tidak dikenal server. Keluar lalu login lagi.');
+    }
+  } catch (e) {
+    add('Sesi login', 'fail', errText(e));
+  }
+
+  // 4. baca semua tab
+  const names = allStores.map((s) => s.sheetName);
+  let batchOk = false;
+  try {
+    const json = await apiPost('getBatch', { token, sheets: names });
+    batchOk = true;
+    const bad: string[] = [];
+    names.forEach((n) => {
+      const entry = json.data?.[n];
+      if (!entry || entry.error) {
+        bad.push(`${n}: ${entry?.error || 'tidak ada respons'}`);
+      } else {
+        add(`Tab ${n}`, 'ok', `${(entry.data || []).length} baris di spreadsheet`);
+      }
+    });
+    bad.forEach((b) => add('Gagal membaca tab', 'fail', b));
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'server_outdated') {
+      add('Membaca data (cara baru)', 'fail', 'Server tidak mengenal perintah getBatch = Code.gs LAMA.');
+      try {
+        const json = await apiGet('getAll', { sheet: 'Alat_Kerja' });
+        add('Membaca data (cara lama)', 'ok', `Alat_Kerja: ${(json.data || []).length} baris`);
+      } catch (e2) {
+        add('Membaca data (cara lama)', 'fail', errText(e2));
+      }
+    } else if (e instanceof ApiError && e.code === 'pending') {
+      add('Membaca data', 'warn', 'Akun masih menunggu persetujuan admin / akses 6 bulan habis.');
+    } else {
+      add('Membaca data (getBatch)', 'fail', errText(e));
+    }
+  }
+
+  // 5. isi di layar
+  const onScreen = allStores.map((s) => `${s.sheetName}=${s.getAll().length}${s.getLastError() ? ' (error)' : ''}`).join(', ');
+  add('Data yang sedang tampil di layar', 'ok', onScreen);
+
+  // ringkasan
+  let summary: string;
+  if (!serverVersion) {
+    summary = 'PENYEBAB: Code.gs di Apps Script masih versi lama. Tempel Code.gs terbaru, Save, lalu Deploy > Manage deployments > pilih deployment dengan ID di atas > pensil > Version: New version > Terapkan.';
+  } else if (serverVersion !== APP_VERSION) {
+    summary = `Versi web (${APP_VERSION}) dan Code.gs (${serverVersion}) berbeda. Samakan keduanya: deploy Code.gs terbaru dan unggah web terbaru.`;
+  } else if (!batchOk) {
+    summary = 'Code.gs sudah baru tapi pembacaan data gagal. Salin hasil diagnosa ini dan kirim ke Claude.';
+  } else if (steps.some((s) => s.status === 'fail')) {
+    summary = 'Ada tab yang gagal dibaca (lihat baris merah). Salin hasil diagnosa ini dan kirim ke Claude.';
+  } else {
+    summary = 'Server dan data normal. Kalau layar masih kosong, muat ulang dengan Ctrl+Shift+R.';
+  }
+  return { steps, summary };
 }

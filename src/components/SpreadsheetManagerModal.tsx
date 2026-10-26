@@ -1,4 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { formatDateTimeID } from '../utils/formatDate';
+import { DiagnosticsPanel } from './DiagnosticsPanel';
+import { APP_VERSION } from '../version';
 import { 
   X, 
   ArrowLeft,
@@ -73,6 +76,41 @@ interface SpreadsheetManagerModalProps {
   currentUser?: User | null;
   initialTab?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Pratinjau tabel di tab "Template & Format Kolom": isinya DATA ASLI dari
+// spreadsheet (bukan contoh statis), maksimal PREVIEW_ROWS baris per tabel.
+// ---------------------------------------------------------------------------
+const PREVIEW_ROWS = 5;
+
+const clip = (v: unknown, max = 90): string => {
+  const t = String(v ?? '').replace(/\s+/g, ' ').trim();
+  return t.length > max ? t.slice(0, max - 1) + '…' : t;
+};
+
+const clipMedia = (v: unknown): string => {
+  const t = String(v ?? '').trim();
+  if (!t) return '-';
+  if (t.startsWith('data:')) return '(media tersimpan langsung di sel)';
+  return clip(t, 48);
+};
+
+const PreviewEmptyRow: React.FC<{ cols: number }> = ({ cols }) => (
+  <tr>
+    <td colSpan={cols} className="p-3 text-center text-slate-500 font-sans italic">
+      Belum ada data di tab ini.
+    </td>
+  </tr>
+);
+
+const PreviewMoreRow: React.FC<{ total: number; cols: number }> = ({ total, cols }) =>
+  total > PREVIEW_ROWS ? (
+    <tr>
+      <td colSpan={cols} className="p-2 text-center text-slate-500 font-sans">
+        … dan {total - PREVIEW_ROWS} baris lainnya (buka tab pengelola untuk melihat semuanya)
+      </td>
+    </tr>
+  ) : null;
 
 export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = ({
   isOpen,
@@ -1148,6 +1186,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
           {/* TAB 0: TEMPLATE & FORMAT SPREADSHEET */}
           {activeTab === 'templates' && (
             <div className="space-y-6">
+              <DiagnosticsPanel />
               <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-800/60 text-xs sm:text-sm text-emerald-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <Sparkles className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
@@ -1169,7 +1208,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                   <span>5 Tab Utama Panduan Teknisi Audio (Dapat Diedit Langsung di Spreadsheet)</span>
                 </div>
                 <p className="text-slate-400 text-xs mt-1">
-                  Urutan kolom di bawah sama dengan tab di Google Spreadsheet Anda. Saat impor, kolom dikenali dari nama header.
+                  Tabel di bawah menampilkan data asli dari Google Spreadsheet Anda (maks. 5 baris per tab) dan ikut berubah otomatis. Urutan kolom sama dengan tab di Sheet; saat impor, kolom dikenali dari nama header.
                 </p>
               </div>
 
@@ -1222,22 +1261,18 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-slate-300 font-mono text-[11px]">
-                      <tr>
-                        <td className="p-2 text-amber-400">tool-multimeter</td>
-                        <td className="p-2 text-white font-sans font-bold">Multimeter Digital True RMS</td>
-                        <td className="p-2">Pengukuran</td>
-                        <td className="p-2 font-sans">True RMS 6000 Count, Auto-Range</td>
-                        <td className="p-2 font-sans">Instrumen wajib untuk mengukur tegangan DC/AC</td>
-                        <td className="p-2 text-slate-400 truncate max-w-xs">https://images.unsplash.com/...</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-amber-400">tool-dim-bulb</td>
-                        <td className="p-2 text-white font-sans font-bold">Bohlam Seri Pengaman (Dim Bulb Tester)</td>
-                        <td className="p-2">Keamanan</td>
-                        <td className="p-2 font-sans">Bohlam Pijar Filamen 100W/220V</td>
-                        <td className="p-2 font-sans">Sirkuit pengaman wajib saat uji pertama power amplifier</td>
-                        <td className="p-2 text-slate-400 truncate max-w-xs">https://images.unsplash.com/...</td>
-                      </tr>
+                      {toolsList.slice(0, PREVIEW_ROWS).map((it) => (
+                        <tr key={it.id}>
+                          <td className="p-2 text-amber-400">{it.id}</td>
+                          <td className="p-2 text-white font-sans font-bold">{clip(it.name)}</td>
+                          <td className="p-2">{it.category}</td>
+                          <td className="p-2 font-sans">{clip(it.specs)}</td>
+                          <td className="p-2 font-sans">{clip(it.description)}</td>
+                          <td className="p-2 text-slate-400 truncate max-w-xs">{clipMedia(it.mediaUrl)}</td>
+                        </tr>
+                      ))}
+                      {toolsList.length === 0 && <PreviewEmptyRow cols={6} />}
+                      <PreviewMoreRow total={toolsList.length} cols={6} />
                     </tbody>
                   </table>
                 </div>
@@ -1292,14 +1327,18 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-slate-300 font-mono text-[11px]">
-                      <tr>
-                        <td className="p-2 text-blue-400">amp-contoh-1</td>
-                        <td className="p-2 text-white font-sans font-bold">ZA-2240 (contoh)</td>
-                        <td className="p-2">Amplifier Low Impedance</td>
-                        <td className="p-2">(isi daya RMS unit)</td>
-                        <td className="p-2 font-sans">(isi tegangan kerja)</td>
-                        <td className="p-2 font-sans">(isi semikonduktor utama)</td>
-                      </tr>
+                      {ampliList.slice(0, PREVIEW_ROWS).map((it) => (
+                        <tr key={it.id}>
+                          <td className="p-2 text-blue-400">{it.id}</td>
+                          <td className="p-2 text-white font-sans font-bold">{clip(it.name)}</td>
+                          <td className="p-2">{it.classType}</td>
+                          <td className="p-2">{clip(it.powerRange)}</td>
+                          <td className="p-2 font-sans">{clip(it.voltageSupply)}</td>
+                          <td className="p-2 font-sans">{clip(it.typicalTransistors)}</td>
+                        </tr>
+                      ))}
+                      {ampliList.length === 0 && <PreviewEmptyRow cols={6} />}
+                      <PreviewMoreRow total={ampliList.length} cols={6} />
                     </tbody>
                   </table>
                 </div>
@@ -1354,14 +1393,18 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-slate-300 font-mono text-[11px]">
-                      <tr>
-                        <td className="p-2 text-indigo-400">media-tr-final</td>
-                        <td className="p-2 text-white font-sans font-bold">Pengujian Transistor Final 2SC5200 / 2SA1943</td>
-                        <td className="p-2 text-emerald-400">video</td>
-                        <td className="p-2 font-sans">Drop tegangan B-C dan B-E 0.5V - 0.7V</td>
-                        <td className="p-2 font-sans text-rose-400">Beep korslet 0.00V atau putus (OL)</td>
-                        <td className="p-2 font-sans">Diode Mode pada Multimeter Digital</td>
-                      </tr>
+                      {mediaGuides.slice(0, PREVIEW_ROWS).map((it) => (
+                        <tr key={it.id}>
+                          <td className="p-2 text-indigo-400">{it.id}</td>
+                          <td className="p-2 text-white font-sans font-bold">{clip(it.title)}</td>
+                          <td className="p-2 text-emerald-400">{it.mediaType}</td>
+                          <td className="p-2 font-sans">{clip(it.goodSymptom)}</td>
+                          <td className="p-2 font-sans text-rose-400">{clip(it.badSymptom)}</td>
+                          <td className="p-2 font-sans">{clip(it.testMethod)}</td>
+                        </tr>
+                      ))}
+                      {mediaGuides.length === 0 && <PreviewEmptyRow cols={6} />}
+                      <PreviewMoreRow total={mediaGuides.length} cols={6} />
                     </tbody>
                   </table>
                 </div>
@@ -1416,22 +1459,18 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-slate-300 font-mono text-[11px]">
-                      <tr>
-                        <td className="p-2 text-emerald-400 font-bold">1</td>
-                        <td className="p-2 text-white font-sans font-bold">Uji Bohlam Seri (Dim Bulb Tester)</td>
-                        <td className="p-2">Proteksi Awal</td>
-                        <td className="p-2 font-sans">Bohlam menyala sekejap (charging elco) lalu redup total</td>
-                        <td className="p-2 font-sans text-rose-400">Bohlam menyala terang benderang terus menerus</td>
-                        <td className="p-2 font-sans">JANGAN sambungkan beban speaker sebelum bohlam redup!</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-emerald-400 font-bold">2</td>
-                        <td className="p-2 text-white font-sans font-bold">Uji DC Offset (DCO) Tanpa Beban</td>
-                        <td className="p-2">Keamanan Speaker</td>
-                        <td className="p-2 font-sans">DCO berada di bawah ±20mV (0.00V s/d 0.02V)</td>
-                        <td className="p-2 font-sans text-rose-400">DCO tinggi mendekati tegangan rel rel PSU</td>
-                        <td className="p-2 font-sans">Gunakan multimeter skala DC milivolt</td>
-                      </tr>
+                      {testAmpliList.slice(0, PREVIEW_ROWS).map((it) => (
+                        <tr key={it.id}>
+                          <td className="p-2 text-emerald-400 font-bold">{it.num}</td>
+                          <td className="p-2 text-white font-sans font-bold">{clip(it.title)}</td>
+                          <td className="p-2">{clip(it.tag)}</td>
+                          <td className="p-2 font-sans">{clip(it.target)}</td>
+                          <td className="p-2 font-sans text-rose-400">{clip(it.failure)}</td>
+                          <td className="p-2 font-sans">{clip(it.tips)}</td>
+                        </tr>
+                      ))}
+                      {testAmpliList.length === 0 && <PreviewEmptyRow cols={6} />}
+                      <PreviewMoreRow total={testAmpliList.length} cols={6} />
                     </tbody>
                   </table>
                 </div>
@@ -1486,22 +1525,18 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-slate-300 font-mono text-[11px]">
-                      <tr>
-                        <td className="p-2 text-purple-400 font-bold">1</td>
-                        <td className="p-2 text-white font-sans font-bold">Uji Resistansi Voice Coil (DCR)</td>
-                        <td className="p-2 font-sans">Ohm Meter Multimeter Digital</td>
-                        <td className="p-2 font-sans">Terbaca nilai DCR 3.2Ω - 3.8Ω untuk speaker 4Ω, atau 6.2Ω - 7.2Ω untuk speaker 8Ω</td>
-                        <td className="p-2 font-sans text-rose-400">Terbaca 0Ω (korslet total) atau OL (kawat coil putus)</td>
-                        <td className="p-2 font-sans">Sentuh probe saat speaker terpasang di meja kerja</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-purple-400 font-bold">2</td>
-                        <td className="p-2 text-white font-sans font-bold">Uji Bunyi Klik &amp; Polaritas Baterai 1.5V</td>
-                        <td className="p-2 font-sans">Baterai AA / AAA 1.5V</td>
-                        <td className="p-2 font-sans">Bunyi 'klik' bersih dan daun speaker terdorong ke DEPAN saat kutub (+) baterai ke terminal (+)</td>
-                        <td className="p-2 font-sans text-rose-400">Tidak ada suara klik sama sekali atau bunyi gesekan sreeek</td>
-                        <td className="p-2 font-sans">Gunakan baterai kecil 1.5V, JANGAN gunakan adaptor tegangan tinggi</td>
-                      </tr>
+                      {testSpeakerList.slice(0, PREVIEW_ROWS).map((it) => (
+                        <tr key={it.id}>
+                          <td className="p-2 text-purple-400 font-bold">{it.num}</td>
+                          <td className="p-2 text-white font-sans font-bold">{clip(it.title)}</td>
+                          <td className="p-2 font-sans">{clip(it.method)}</td>
+                          <td className="p-2 font-sans">{clip(it.normal)}</td>
+                          <td className="p-2 font-sans text-rose-400">{clip(it.defect)}</td>
+                          <td className="p-2 font-sans">{clip(it.tip)}</td>
+                        </tr>
+                      ))}
+                      {testSpeakerList.length === 0 && <PreviewEmptyRow cols={6} />}
+                      <PreviewMoreRow total={testSpeakerList.length} cols={6} />
                     </tbody>
                   </table>
                 </div>
@@ -1562,31 +1597,15 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-slate-300 font-mono text-[11px]">
-                      <tr>
-                        <td className="p-2 text-emerald-300 font-sans font-bold">Vicky</td>
-                        <td className="p-2">Audio Specialist</td>
-                        <td className="p-2">Master Engineer - Fulltime</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-emerald-300 font-sans font-bold">Agas Maulana</td>
-                        <td className="p-2">Class D Specialist</td>
-                        <td className="p-2">Master Engineer - Fulltime</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-emerald-300 font-sans font-bold">Tommy Wijaya</td>
-                        <td className="p-2">Head of Engineering</td>
-                        <td className="p-2">Master Engineer - Fulltime</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-white font-sans">Rian Hidayat</td>
-                        <td className="p-2">Teknisi Audio</td>
-                        <td className="p-2">Akses 6 Bulan</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-white font-sans">Budi Santoso</td>
-                        <td className="p-2">Teknisi Perakitan</td>
-                        <td className="p-2">Akses 6 Bulan</td>
-                      </tr>
+                      {whitelist.slice(0, PREVIEW_ROWS).map((it) => (
+                        <tr key={it.id}>
+                          <td className="p-2 text-emerald-300 font-sans font-bold">{clip(it.name)}</td>
+                          <td className="p-2">{clip(it.department)}</td>
+                          <td className="p-2">{clip(it.notes)}</td>
+                        </tr>
+                      ))}
+                      {whitelist.length === 0 && <PreviewEmptyRow cols={3} />}
+                      <PreviewMoreRow total={whitelist.length} cols={3} />
                     </tbody>
                   </table>
                 </div>
@@ -1642,22 +1661,18 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-slate-300 font-mono text-[11px]">
-                      <tr>
-                        <td className="p-2 text-white font-sans">Cara Tes TR Final TOSHIBA 2SC5200</td>
-                        <td className="p-2 text-blue-400 font-bold">video</td>
-                        <td className="p-2 truncate max-w-xs">https://drive.google.com/file/d/1vXYZ_video_final_toshiba/view</td>
-                        <td className="p-2">Transistor Final 2SC5200</td>
-                        <td className="p-2 text-emerald-400">Forward bias 0.6V</td>
-                        <td className="p-2 text-rose-400">Short 0.00V / Putus</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-white font-sans">Identifikasi Elco Kembung / Bocor</td>
-                        <td className="p-2 text-purple-400 font-bold">image</td>
-                        <td className="p-2 truncate max-w-xs">https://images.unsplash.com/photo-1518770660439-4636190af475?w=800</td>
-                        <td className="p-2">Elco PSU 10000uF/100V</td>
-                        <td className="p-2 text-emerald-400">Tutup datar, ESR &lt; 0.2R</td>
-                        <td className="p-2 text-rose-400">Cembung &amp; karat</td>
-                      </tr>
+                      {mediaGuides.slice(0, PREVIEW_ROWS).map((it) => (
+                        <tr key={it.id}>
+                          <td className="p-2 text-white font-sans">{clip(it.title)}</td>
+                          <td className="p-2 text-blue-400 font-bold">{it.mediaType}</td>
+                          <td className="p-2 truncate max-w-xs">{clipMedia(it.mediaUrl)}</td>
+                          <td className="p-2">{clip(it.componentName)}</td>
+                          <td className="p-2 text-emerald-400">{clip(it.goodSymptom)}</td>
+                          <td className="p-2 text-rose-400">{clip(it.badSymptom)}</td>
+                        </tr>
+                      ))}
+                      {mediaGuides.length === 0 && <PreviewEmptyRow cols={6} />}
+                      <PreviewMoreRow total={mediaGuides.length} cols={6} />
                     </tbody>
                   </table>
                 </div>
@@ -1712,27 +1727,17 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-slate-300 font-mono text-[11px]">
-                      <tr>
-                        <td className="p-2 text-white font-sans font-bold">Power Amplifier CA20</td>
-                        <td className="p-2">SN-CA20-00891</td>
-                        <td className="p-2 text-rose-400">Transistor Final 2SC5200 Short</td>
-                        <td className="p-2 font-sans">Ganti sepasang TR Final &amp; setel ulang bias 25-30mA</td>
-                        <td className="p-2 text-amber-400">Sedang</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-white font-sans font-bold">Power RDW FA9000</td>
-                        <td className="p-2">SN-RDW-7712</td>
-                        <td className="p-2 text-rose-400">Mosfet IRFP260N Terbakar</td>
-                        <td className="p-2 font-sans">Ganti Mosfet driver dan IC PWM IRS2092S</td>
-                        <td className="p-2 text-rose-400">Tinggi</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-white font-sans font-bold">Subwoofer 18 Inch B&amp;C</td>
-                        <td className="p-2">SN-SUB-3301</td>
-                        <td className="p-2 text-rose-400">Spool Voice Coil Gosong</td>
-                        <td className="p-2 font-sans">Ganti recone kit 4 inch akibat clip over gain</td>
-                        <td className="p-2 text-amber-400">Sedang</td>
-                      </tr>
+                      {diagnosisList.slice(0, PREVIEW_ROWS).map((it) => (
+                        <tr key={it.id}>
+                          <td className="p-2 text-white font-sans font-bold">{clip(it.unitName)}</td>
+                          <td className="p-2">{clip(it.serialNumber)}</td>
+                          <td className="p-2 text-rose-400">{clip(it.damagedComponent)}</td>
+                          <td className="p-2 font-sans">{clip(it.diagnosisResult)}</td>
+                          <td className="p-2 text-amber-400">{it.difficulty}</td>
+                        </tr>
+                      ))}
+                      {diagnosisList.length === 0 && <PreviewEmptyRow cols={5} />}
+                      <PreviewMoreRow total={diagnosisList.length} cols={5} />
                     </tbody>
                   </table>
                 </div>
@@ -1786,30 +1791,16 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-slate-300 font-mono text-[11px]">
-                      <tr>
-                        <td className="p-2 text-white font-sans font-bold">Tommy Wijaya</td>
-                        <td className="p-2 text-emerald-400 font-bold">Pembina</td>
-                        <td className="p-2">+62 812-3456-7890</td>
-                        <td className="p-2 font-sans">Troubleshooting Daya Tinggi &amp; Topologi Power</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-white font-sans font-bold">Agas Maulana</td>
-                        <td className="p-2 text-emerald-400 font-bold">Pembina</td>
-                        <td className="p-2">+62 813-9876-5432</td>
-                        <td className="p-2 font-sans">Power Kelas D &amp; SMPS Switching</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-white font-sans font-bold">Vicky</td>
-                        <td className="p-2 text-emerald-400 font-bold">Pembina</td>
-                        <td className="p-2">+62 821-4567-8910</td>
-                        <td className="p-2 font-sans">Karakteristik Komponen &amp; Akustik Speaker</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-white font-sans font-bold">Lestari Simatupang</td>
-                        <td className="p-2 text-blue-400 font-bold">Admin</td>
-                        <td className="p-2">+62 857-1234-5678</td>
-                        <td className="p-2 font-sans">Validasi Hak Akses 6 Bulan &amp; Whitelist</td>
-                      </tr>
+                      {staffList.slice(0, PREVIEW_ROWS).map((it) => (
+                        <tr key={it.id}>
+                          <td className="p-2 text-white font-sans font-bold">{clip(it.name)}</td>
+                          <td className="p-2 text-emerald-400 font-bold">{it.role}</td>
+                          <td className="p-2">{clip(it.phone)}</td>
+                          <td className="p-2 font-sans">{clip(it.specialty)}</td>
+                        </tr>
+                      ))}
+                      {staffList.length === 0 && <PreviewEmptyRow cols={4} />}
+                      <PreviewMoreRow total={staffList.length} cols={4} />
                     </tbody>
                   </table>
                 </div>
@@ -1864,27 +1855,17 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-slate-300 font-mono text-[11px]">
-                      <tr>
-                        <td className="p-2 text-white font-sans font-bold">Vicky</td>
-                        <td className="p-2 text-cyan-400 font-bold">SRV-2025-001</td>
-                        <td className="p-2 font-sans">Power CA20 mati total, TR final short 4 set dan bias pincang</td>
-                        <td className="p-2 text-emerald-400 font-sans">Toshiba 2SC5200 &amp; 2SA1943 (4 set), Zener 15V, R Kapur 0.22Ω</td>
-                        <td className="p-2">2025-05-10</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-white font-sans font-bold">Agas Maulana</td>
-                        <td className="p-2 text-cyan-400 font-bold">SRV-2025-002</td>
-                        <td className="p-2 font-sans">Ampli Kelas D D2K SMPS suara serak di volume tinggi, LC filter panas</td>
-                        <td className="p-2 text-emerald-400 font-sans">IC IR2110 driver (1 pcs), Mosfet IRFP4227, Toroid 22uH</td>
-                        <td className="p-2">2025-05-11</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 text-white font-sans font-bold">Tommy Wijaya</td>
-                        <td className="p-2 text-cyan-400 font-bold">SRV-2025-003</td>
-                        <td className="p-2 font-sans">Speaker aktif 15 inch protek terus, DCO bocor 18V ke woofer</td>
-                        <td className="p-2 text-emerald-400 font-sans">Transistor diff-amp 2N5401 (2 pcs), Trimpot DCO 1k multi-turn</td>
-                        <td className="p-2">2025-05-12</td>
-                      </tr>
+                      {serviceLogs.slice(0, PREVIEW_ROWS).map((it) => (
+                        <tr key={it.id}>
+                          <td className="p-2 text-white font-sans font-bold">{clip(it.namaYangMengerjakan)}</td>
+                          <td className="p-2 text-cyan-400 font-bold">{it.nomorService}</td>
+                          <td className="p-2 font-sans">{clip(it.analisaKerusakan)}</td>
+                          <td className="p-2 text-emerald-400 font-sans">{clip(it.komponenDiganti)}</td>
+                          <td className="p-2">{formatDateTimeID(it.createdAt)}</td>
+                        </tr>
+                      ))}
+                      {serviceLogs.length === 0 && <PreviewEmptyRow cols={5} />}
+                      <PreviewMoreRow total={serviceLogs.length} cols={5} />
                     </tbody>
                   </table>
                 </div>
@@ -3723,7 +3704,7 @@ export const SpreadsheetManagerModal: React.FC<SpreadsheetManagerModalProps> = (
         {/* Modal Footer with Clear Back Actions */}
         <div className="p-3 sm:p-4 border-t border-slate-800 bg-slate-950 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-[11px] text-slate-400 hidden sm:block">
-            Semua perubahan disimpan langsung ke Google Spreadsheet Anda.
+            Semua perubahan disimpan langsung ke Google Spreadsheet Anda. · Web {APP_VERSION}
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             {activeTab !== 'templates' && (

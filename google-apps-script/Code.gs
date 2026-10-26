@@ -93,6 +93,10 @@ const MEDIA_FOLDER_NAME = 'Panduan Service - Media';
 const LOGIN_MAX_FAILS = 5;
 const LOGIN_LOCK_SECONDS = 600;
 
+// Penanda versi Code.gs. Web menampilkannya di Pusat Integrasi > Diagnosa,
+// jadi kelihatan jelas apakah deployment sudah memakai Code.gs terbaru.
+const SCRIPT_VERSION = 'v14.3';
+
 const DEFAULT_ASK_TOKENS = 5;
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000; // 30 hari
 
@@ -103,7 +107,7 @@ function doGet(e) {
   try {
     const action = e && e.parameter ? e.parameter.action : '';
     if (action === 'ping') {
-      return jsonResponse_({ ok: true, time: new Date().toISOString() });
+      return jsonResponse_({ ok: true, version: SCRIPT_VERSION, time: new Date().toISOString() });
     }
     // Pembacaan data SEKARANG wajib login -> lewat POST getBatch (token tidak
     // ikut tercatat di URL). Aksi getAll lama sengaja ditutup.

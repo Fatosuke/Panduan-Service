@@ -39,6 +39,7 @@ import {
   isBackendConfigured,
   subscribeToWriteErrors,
   subscribeToSessionInvalid,
+  isServerOutdated,
 } from './services/backendService';
 import { Users as UsersIcon } from 'lucide-react';
 
@@ -61,6 +62,7 @@ export default function App() {
   const [isDataReady, setIsDataReady] = useState<boolean>(false);
   const [storeErrors, setStoreErrors] = useState<{ sheet: string; error: string }[]>([]);
   const [dismissedErrorBanner, setDismissedErrorBanner] = useState<boolean>(false);
+  const [serverOutdatedFlag, setServerOutdatedFlag] = useState<boolean>(false);
   const [writeErrorMsg, setWriteErrorMsg] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState<boolean>(false);
@@ -108,6 +110,7 @@ export default function App() {
     const checkStatus = () => {
       if (allStoresReady()) setIsDataReady(true);
       setStoreErrors(SpreadsheetService.getStoreErrors());
+      setServerOutdatedFlag(isServerOutdated());
     };
     checkStatus();
     const unsub = subscribeToAnyDataChange(checkStatus);
@@ -411,29 +414,53 @@ export default function App() {
       )}
 
       {/* DATA LOAD ERROR BANNER (admin only - helps diagnose Apps Script deploy issues) */}
-      {isAdmin && storeErrors.length > 0 && !dismissedErrorBanner && (
-        <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-4">
-          <div className="p-4 rounded-2xl bg-rose-950/60 border border-rose-700/60 text-rose-200 text-xs sm:text-sm flex items-start gap-3">
+      {(storeErrors.length > 0 || serverOutdatedFlag) && !dismissedErrorBanner && (
+        <div className="max-w-7xl mx-auto w-full px-3 sm:px-4 pt-3">
+          <div className="p-3 sm:p-4 rounded-xl bg-rose-950/60 border border-rose-800 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="font-bold text-rose-200 mb-1">
-                {storeErrors.length} tab data gagal dimuat dari spreadsheet
-              </p>
-              <ul className="space-y-0.5 text-[11px] sm:text-xs text-rose-300/90 mb-2">
-                {storeErrors.map((e) => (
-                  <li key={e.sheet}>
-                    <strong>{e.sheet}</strong>: {e.error}
-                  </li>
-                ))}
-              </ul>
-              <p className="text-[11px] text-rose-300/80">
-                Biasanya karena Apps Script belum di-deploy ulang dengan Code.gs terbaru. Buka Apps Script Editor Anda &gt; Deploy &gt; Manage deployments &gt; buat versi baru.
-              </p>
+            <div className="flex-1 min-w-0">
+              {serverOutdatedFlag ? (
+                <>
+                  <p className="text-sm font-bold text-rose-200 mb-1">
+                    Server spreadsheet belum diperbarui
+                  </p>
+                  <p className="text-[11px] sm:text-xs text-rose-300/90">
+                    {isAdmin
+                      ? 'Code.gs di Apps Script masih versi lama. Buka Apps Script > tempel Code.gs terbaru > Save > Deploy > Manage deployments > New version > Deploy. Sampai itu dilakukan, aplikasi memuat data dengan cara lama dan fitur baru (unggah ke Drive, chat privat) belum aktif.'
+                      : 'Pembaruan server belum selesai, sebagian fitur belum aktif. Beri tahu admin (akun Fulltime).'}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-rose-200 mb-1">
+                    {storeErrors.length} tab data gagal dimuat dari spreadsheet
+                  </p>
+                  {isAdmin ? (
+                    <>
+                      <ul className="space-y-0.5 text-[11px] sm:text-xs text-rose-300/90 mb-2">
+                        {storeErrors.map((e) => (
+                          <li key={e.sheet}>
+                            <strong>{e.sheet}</strong>: {e.error}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-[11px] text-rose-300/80">
+                        Biasanya karena Apps Script belum di-deploy ulang dengan Code.gs terbaru, atau koneksi/izin akses bermasalah.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-[11px] sm:text-xs text-rose-300/90">
+                      Data belum bisa dimuat sekarang, jadi daftar di bawah mungkin tampak kosong. Coba muat ulang halaman; kalau tetap begitu, beri tahu admin.
+                    </p>
+                  )}
+                </>
+              )}
             </div>
             <button
               type="button"
               onClick={() => setDismissedErrorBanner(true)}
               className="p-1 rounded-lg text-rose-400 hover:text-rose-200 hover:bg-rose-900/60 transition-colors shrink-0"
+              aria-label="Tutup"
             >
               <X className="w-4 h-4" />
             </button>
