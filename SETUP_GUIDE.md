@@ -32,14 +32,24 @@ permintaan polling untuk semua tab (lebih ringan) dan berhenti saat tab browser 
 
 ---
 
+## Menambah foto / video komponen (Tab 3)
+
+- **Foto kecil**: tersimpan langsung di Google Sheet.
+- **Foto besar & video (maks. 15 MB, MP4 / MOV / WebM)**: diunggah otomatis ke folder Drive
+  "Panduan Service - Media". Butuh `authorizeDrive` sudah dijalankan dan Code.gs v14.4 aktif.
+- **Video lebih dari 15 MB**: unggah ke Google Drive sendiri (Bagikan > "Siapa saja yang memiliki link"),
+  atau ke YouTube (Tidak publik), lalu tempel link-nya di mode "Tempel Link".
+
+---
+
 ## Diagnosa Web (khusus akun Vicky)
 
 Login dengan akun atas nama Vicky > **Spreadsheet Sync** (Pusat Integrasi) > tab
 **Template & Format Kolom** > klik **Jalankan Diagnosa** pada panel **Diagnosa Web**. Hasilnya menunjukkan langkah mana yang bermasalah
 (URL, versi Code.gs, login, jumlah baris tiap tab, isi di layar), lengkap dengan
 kesimpulan. Klik **Salin hasil** untuk mengirimkannya ke Claude.
-Versi web juga tampil di bagian bawah Pusat Integrasi ("Web v14.3b") - kalau angkanya
-bukan v14.3b, berarti Vercel belum memakai build terbaru.
+Versi web juga tampil di bagian bawah Pusat Integrasi ("Web v14.4") - kalau angkanya
+bukan v14.4, berarti Vercel belum memakai build terbaru.
 
 ---
 

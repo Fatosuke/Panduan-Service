@@ -182,7 +182,7 @@ export const MediaFieldUploader: React.FC<MediaFieldUploaderProps> = ({
         } else {
           setErrorMessage('Foto terlalu besar untuk disimpan di sel spreadsheet. Tempel link foto saja.');
         }
-      } else if (file.type.startsWith('video/')) {
+      } else if (file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v)$/i.test(file.name)) {
         // Video tidak mungkin muat di satu sel -> selalu lewat Google Drive.
         if (file.size > 15 * 1024 * 1024) {
           setErrorMessage('Ukuran video melebihi 15MB. Disarankan merekam video singkat (10-30 detik) agar hemat memori.');
@@ -197,7 +197,7 @@ export const MediaFieldUploader: React.FC<MediaFieldUploaderProps> = ({
           }
         }
       } else {
-        setErrorMessage('Format file tidak didukung. Harap pilih gambar (JPG/PNG/WebP) atau video (MP4/WebM).');
+        setErrorMessage('Format file tidak didukung. Harap pilih gambar (JPG/PNG/WebP) atau video (MP4/MOV/WebM).');
       }
     } catch (err) {
       console.error('File process error:', err);
@@ -272,7 +272,7 @@ export const MediaFieldUploader: React.FC<MediaFieldUploaderProps> = ({
             type="file"
             ref={filePickerRef}
             onChange={(e) => e.target.files?.[0] && handleProcessFile(e.target.files[0])}
-            accept="image/*,video/mp4,video/webm"
+            accept="image/*,video/mp4,video/webm,video/quicktime,.mov,.mp4,.webm"
             className="hidden"
           />
           {/* Native Mobile Camera Picker */}

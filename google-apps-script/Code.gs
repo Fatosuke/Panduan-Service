@@ -95,7 +95,7 @@ const LOGIN_LOCK_SECONDS = 600;
 
 // Penanda versi Code.gs. Web menampilkannya di Pusat Integrasi > Diagnosa Web,
 // jadi kelihatan jelas apakah deployment sudah memakai Code.gs terbaru.
-const SCRIPT_VERSION = 'v14.3';
+const SCRIPT_VERSION = 'v14.4';
 
 const DEFAULT_ASK_TOKENS = 5;
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000; // 30 hari
@@ -531,9 +531,9 @@ function handleUploadMedia_(body) {
   }
 
   const mime = String(body.mimeType || '').toLowerCase();
-  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm'];
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'];
   if (allowed.indexOf(mime) === -1) {
-    return { ok: false, error: 'Format file tidak didukung (gunakan JPG/PNG/WebP atau MP4/WebM).' };
+    return { ok: false, error: 'Format file tidak didukung (gunakan JPG/PNG/WebP atau MP4/MOV/WebM).' };
   }
   const data = String(body.dataBase64 || '');
   if (!data) return { ok: false, error: 'File kosong.' };
@@ -543,7 +543,7 @@ function handleUploadMedia_(body) {
 
   let file;
   try {
-    const ext = mime.split('/')[1].replace('jpeg', 'jpg');
+    const ext = mime.split('/')[1].replace('jpeg', 'jpg').replace('quicktime', 'mov');
     const safeName = String(body.fileName || 'media').replace(/[^\w.\- ]/g, '_').slice(0, 60);
     const blob = Utilities.newBlob(Utilities.base64Decode(data), mime, Date.now() + '-' + safeName + '.' + ext);
     file = getMediaFolder_().createFile(blob);

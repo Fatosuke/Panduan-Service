@@ -326,10 +326,16 @@ export async function uploadMediaToDrive(
   });
   const base64 = dataUrl.split(',')[1] || '';
   const token = getStoredToken();
+  // Sebagian browser/PC tidak memberi tipe untuk file .mov - tebak dari ekstensi.
+  const ext = (fileName.split('.').pop() || '').toLowerCase();
+  const guessed: Record<string, string> = {
+    mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm',
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
+  };
   const json = await apiPost('uploadMedia', {
     token,
     fileName,
-    mimeType: file.type,
+    mimeType: file.type || guessed[ext] || '',
     dataBase64: base64,
   });
   return { url: json.url, type: json.type };
