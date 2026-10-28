@@ -4,4 +4,4 @@
  *                build mana yang sedang tayang di Vercel.
  */
 export const APP_VERSION = 'v14.4';
-export const APP_BUILD = 'v14.4';
+export const APP_BUILD = 'v14.4b';

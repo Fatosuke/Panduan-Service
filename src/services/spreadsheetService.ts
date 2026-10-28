@@ -664,11 +664,13 @@ export class SpreadsheetService {
           mediaUrl: r.mediaUrl,
           componentName: r.componentName || 'Komponen Elektronika',
           caption: r.caption || 'Panduan media komponen audio',
-          goodSymptom: r.goodSymptom || 'Kondisi normal / parameter baik',
-          badSymptom: r.badSymptom || 'Kondisi rusak / korslet / short',
-          testMethod: r.testMethod || 'Uji menggunakan Multimeter Digital',
-          normalValue: r.normalValue || 'Normal',
-          damagedValue: r.damagedValue || 'Rusak',
+          // Dibiarkan kosong bila tidak diisi: kondisi media dibaca dari kolom ini
+          // (hanya gejala bagus terisi = BAGUS, hanya gejala rusak terisi = RUSAK).
+          goodSymptom: r.goodSymptom,
+          badSymptom: r.badSymptom,
+          testMethod: r.testMethod,
+          normalValue: r.normalValue,
+          damagedValue: r.damagedValue,
         });
       });
 
@@ -1499,7 +1501,7 @@ amp-contoh-1,ZA-2240 (contoh),Amplifier Low Impedance,(isi daya RMS unit),(isi t
   public static getMediaTemplateCSV(): string {
     // Urutan kolom SAMA dengan tab Komponen_Rusak_Bagus di Google Sheet.
     return `ID,Judul_Komponen,Tipe_Media,URL_Media,Keterangan,Nama_Komponen,Gejala_Normal,Gejala_Rusak,Metode_Pengujian,Nilai_Normal,Nilai_Rusak
-guide-contoh-1,Transistor Final (contoh),video,https://www.youtube.com/watch?v=ID_VIDEO,Keterangan singkat media,Transistor Bipolar NPN,Gejala saat komponen normal,Gejala saat komponen rusak,Uji skala Dioda Multimeter Digital,Nilai ukur normal,Nilai ukur rusak`;
+guide-contoh-1,Dioda B-E transistor normal (contoh),video,https://www.youtube.com/watch?v=ID_VIDEO,Keterangan singkat media,Transistor Bipolar NPN,Gejala saat komponen normal,,Uji skala Dioda Multimeter Digital,Nilai ukur normal,`;
   }
 
   public static exportMediaCSV(): string {

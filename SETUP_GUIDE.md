@@ -32,6 +32,17 @@ permintaan polling untuk semua tab (lebih ringan) dan berhenti saat tab browser 
 
 ---
 
+## Tab 3: foto & video per komponen (v14.4b)
+
+- Satu tombol **+ Tambah Media**. Pilih komponen (dari Katalog Komponen), kondisi
+  (**Bagus / Rusak / Umum**), unggah file atau tempel link. **Simpan & Tambah Lagi** untuk memasukkan beberapa sekaligus.
+- Media muncul di kartu komponen yang namanya sama, dikelompokkan Bagus / Rusak / Umum.
+  Nama komponen yang tidak ada di katalog masuk ke bagian "Media lainnya".
+- Kondisi disimpan di kolom Sheet yang sudah ada (tidak ada kolom baru, Code.gs tidak perlu diubah):
+  hanya `goodSymptom` terisi = Bagus, hanya `badSymptom` terisi = Rusak, selain itu = Umum.
+
+---
+
 ## Menambah foto / video komponen (Tab 3)
 
 - **Foto kecil**: tersimpan langsung di Google Sheet.
@@ -48,8 +59,8 @@ Login dengan akun atas nama Vicky > **Spreadsheet Sync** (Pusat Integrasi) > tab
 **Template & Format Kolom** > klik **Jalankan Diagnosa** pada panel **Diagnosa Web**. Hasilnya menunjukkan langkah mana yang bermasalah
 (URL, versi Code.gs, login, jumlah baris tiap tab, isi di layar), lengkap dengan
 kesimpulan. Klik **Salin hasil** untuk mengirimkannya ke Claude.
-Versi web juga tampil di bagian bawah Pusat Integrasi ("Web v14.4") - kalau angkanya
-bukan v14.4, berarti Vercel belum memakai build terbaru.
+Versi web juga tampil di bagian bawah Pusat Integrasi ("Web v14.4b") - kalau angkanya
+bukan v14.4b, berarti Vercel belum memakai build terbaru.
 
 ---
 
